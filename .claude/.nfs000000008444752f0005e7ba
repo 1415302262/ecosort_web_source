@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(conda run:*)",
+      "Bash(conda env create:*)",
+      "Bash(python3:*)",
+      "Bash(wget:*)",
+      "Bash(bash:*)",
+      "Bash(unzip:*)",
+      "Bash(ls:*)",
+      "Bash(for:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(xargs:*)",
+      "Bash(kaggle datasets download:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
