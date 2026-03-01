@@ -66,3 +66,24 @@ wandb/
 *.ckpt
 *.pkl
 *.h5
+
+# Development & Status Reports (not for production)
+*_STATUS.md
+*_REPORT.md
+CHECKLIST.md
+*.txt
+
+# PDF & Documents
+*.pdf
+*.docx
+
+# Temporary data
+data/audit_results/
+data/download/
+delivery/
+
+# Weird empty files
+=*
+
+# Claude internal
+.claude/.nfs*
