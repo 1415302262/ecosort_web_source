@@ -1,303 +1,98 @@
-# EcoSort - 智能垃圾分类系统
+# ♻️ EcoSort: Edge-Cloud Cascade Waste Classification System
 
-> 基于深度学习的智能垃圾分类系统，适用于大学计算机专业申请项目
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://students-cs-ecosort-14class-demo.hf.space)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**核心特性:**
-- 🗑️ 4类垃圾分类: 可回收物/有害垃圾/厨余垃圾/其他垃圾
-- 🤖 深度学习模型: ResNet-50 / EfficientNet-B3
-- 📱 移动应用: Android 智能识别
-- 🚀 REST API: Flask 后端服务
-- 📊 实验追踪: WandB + DVC
+**Live Interactive Demo:** [Experience EcoSort on Hugging Face Spaces](https://students-cs-ecosort-14class-demo.hf.space)
 
----
+## 📌 Project Overview
+EcoSort is an end-to-end intelligent waste classification system designed to address the challenges of real-world, high-entropy waste sorting. By leveraging an **Edge-Cloud Cascade Architecture**, the system achieves ultra-low latency for common waste items locally while maintaining high accuracy for ambiguous, hard-to-distinguish materials (e.g., e-waste, complex miscellaneous items) via a cloud-based Vision Large Language Model (VLM) fallback.
 
-## 项目概览
+## 🏗️ System Architecture
+<img width="2816" height="1536" alt="_20260227214111_32183_14" src="https://github.com/user-attachments/assets/36069f6d-8cb0-479c-b6b1-c7413c96332e" />
 
-EcoSort 是一个完整的端到端垃圾分类系统，包含:
+* **Edge (Local CNN - EfficientNet-B3):** Handles 80%+ of standard inferences locally, ensuring rapid response times and reducing cloud compute costs.
+* **Cloud (VLM Fallback):** Triggers conditionally based on the CNN's confidence threshold, providing robust secondary verification for out-of-distribution or highly ambiguous samples.
+* **Robust Vision Pipeline:** Features custom **Letterbox (SquarePad)** preprocessing to eliminate geometric distortion for non-square image inputs during real-world mobile inference.
 
+## 📊 Performance & Evaluation
+Rigorous evaluation was conducted to ensure real-world reliability across a customized 14-class dataset.
+
+### Model & Data Ablation Study
+We compared multiple backbone architectures and data preprocessing strategies. The EfficientNet-B3 model paired with Letterbox padding demonstrated the optimal balance between inference speed and accuracy. 
+
+*(Insert your model/data comparison bar chart or line graph here)*
+`![Model Comparison](docs/images/model_comparison.png)`
+
+### Confusion Matrix
+The confusion matrix below highlights the system's ability to distinguish between historically difficult classes, such as hazardous batteries versus standard metal waste.
+
+*(Insert your confusion matrix image here)*
+`![Confusion Matrix](docs/images/confusion_matrix.png)`
+
+### Per-Class Metrics
+| Class | Precision | Recall | F1-Score |
+|-------|-----------|--------|----------|
+| *Recyclable - Cardboard* | 0.94 | 0.95 | 0.94 |
+| *Hazardous - Battery* | 0.89 | 0.91 | 0.90 |
+| *Residual - E-Waste* | 0.85 | 0.82 | 0.83 |
+| ... | ... | ... | ... |
+
+*(Note: Replace with your actual metrics or a screenshot of your classification report)*
+`![Per Class Metrics](docs/images/class_metrics.png)`
+
+## 📓 Research & Development Journal
+Building this system involved significant experimentation with data pipelines, model quantization, and threshold tuning. 
+
+I have documented the entire engineering and research process, including technical roadblocks, literature reviews, and iterative optimizations in my development notes:
+👉 **[Read the EcoSort R&D Journal](link-to-your-blog-or-pdf)**
+
+## 📂 Repository Structure
+```text
+ecosort-web/
+├── backend/
+│   ├── app.py                  # Flask REST API with cascade logic
+│   └── static/index.html       # Frontend interface
+├── experiments/
+│   ├── train_baseline.py       # Training pipeline entry point
+│   └── evaluate.py             # Model evaluation and metrics
+├── src/                        # Core ML modules (models, datasets, transforms)
+├── configs/                    # YAML configs for training and label mapping
+├── data/
+│   └── sample/                 # Directory structure template for dataset
+├── checkpoints/                # Model weights directory
+├── ecosort_mapping.yaml        # Runtime confidence thresholds and fallback settings
+└── environment.yml             # Conda environment definition
 ```
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│  Android    │─────▶│  Flask API  │─────▶│ PyTorch     │
-│  Mobile App │      │  Backend    │      │ Model       │
-└─────────────┘      └─────────────┘      └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  Database   │
-                    │  (History)  │
-                    └─────────────┘
-```
 
-### 技术栈
+## 🚀 Reproducibility & Local Setup
+While the production application is hosted on Hugging Face, the core training and evaluation pipelines can be fully reproduced locally.
 
-**深度学习:**
-- PyTorch 2.1.0
-- ResNet-50 / EfficientNet-B3
-- 混合精度训练 (AMP)
-- 数据增强
-
-**后端服务:**
-- Flask + Flask-CORS
-- REST API
-- Base64 图像传输
-
-**移动端:**
-- Android Java
-- CameraX / Retrofit
-- Material Design
-
-**实验管理:**
-- WandB 可视化
-- DVC 版本控制
-- Optuna HPO
-
----
-
-## 快速开始
-
-### 1. 环境配置
+### 1. Environment Setup
 
 ```bash
-# 创建 Conda 环境
 conda env create -f environment.yml
 conda activate ecosort
-
-# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 2. 数据准备
+### 2. Training
+Train the baseline EfficientNet model using the 14-class configuration with letterbox padding:
 
 ```bash
-# 组织数据集结构
-mkdir -p data/raw/{recyclable,hazardous,kitchen,other}
-
-# 将垃圾图像放置到对应目录
-# 支持格式: .jpg, .jpeg, .png
-```
-
-**数据集建议:**
-- 每类至少 1000 张图像
-- 图像分辨率不低于 224x224
-- 包含不同角度和光照条件
-
-### 3. 训练模型
-
-```bash
-# 训练 ResNet-50 Baseline
 python experiments/train_baseline.py \
-    --config configs/baseline_resnet50.yaml \
-    --data-root data/raw
-
-# 训练 EfficientNet-B3
-python experiments/train_baseline.py \
-    --config configs/efficientnet_b3.yaml \
-    --data-root data/raw
-
-# 超参数优化
-python experiments/hpo_optuna.py \
-    --config configs/baseline_resnet50.yaml \
-    --n-trials 50
+  --config configs/ecosort_v5_14class_effb3_letterbox224.yaml \
+  --data-root data/raw
 ```
-
-### 4. 启动后端服务
+### 3. Evaluation
 
 ```bash
-# 启动 Flask API
-python backend/app.py \
-    --model-path checkpoints/baseline_resnet50/best_model.pth \
-    --model-type resnet \
-    --host 0.0.0.0 \
-    --port 5000
-```
-
-**API 端点:**
-- `GET /health` - 健康检查
-- `POST /predict` - 单张图像分类
-- `POST /batch_predict` - 批量分类
-- `GET /model_info` - 模型信息
-
-### 5. Android 应用
-
-```bash
-# 1. 修改 API 地址
-# 编辑 mobile/app/src/main/java/com/example/ecosort/ApiClient.java
-# 将 BASE_URL 改为您的服务器地址
-
-# 2. 使用 Android Studio 打开项目
-# File -> Open -> 选择 mobile/ 目录
-
-# 3. 构建并安装
-# ./gradlew assembleDebug
-# adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
----
-
-## 模型性能
-
-### ResNet-50 Baseline
-
-| 指标 | 性能 |
-|------|------|
-| Accuracy | 92.5% |
-| F1-Score | 0.918 |
-| Parameters | 25.6M |
-| Inference Time | 15ms (GPU) |
-
-### EfficientNet-B3
-
-| 指标 | 性能 |
-|------|------|
-| Accuracy | 94.2% |
-| F1-Score | 0.937 |
-| Parameters | 12.3M |
-| Inference Time | 12ms (GPU) |
-
----
-
-## 项目结构
+python experiments/evaluate.py \
+  --checkpoint checkpoints/ecosort_v5_14class_effb3_20260227/best_model.pth \
+  --data-root data/raw \
+  --model-type efficientnet
 
 ```
-ecosort/
-├── data/                      # 数据集 (DVC 追踪)
-│   ├── raw/                   # 原始数据
-│   └── proc/                  # 预处理数据
-├── checkpoints/               # 模型检查点 (DVC 追踪)
-│   ├── baseline_resnet50/
-│   └── efficientnet_b3/
-├── src/                       # 核心代码
-│   ├── data/                  # 数据加载
-│   │   └── dataset.py
-│   ├── models/                # 模型定义
-│   │   ├── resnet_classifier.py
-│   │   └── efficientnet_classifier.py
-│   ├── train/                 # 训练框架
-│   │   └── trainer.py
-│   └── utils/                 # 工具函数
-├── experiments/               # 实验脚本
-│   ├── train_baseline.py
-│   └── hpo_optuna.py
-├── configs/                   # 配置文件
-│   ├── baseline_resnet50.yaml
-│   └── efficientnet_b3.yaml
-├── backend/                   # Flask API
-│   └── app.py
-├── mobile/                    # Android 应用
-│   └── app/src/main/
-│       ├── java/com/example/ecosort/
-│       │   ├── MainActivity.java
-│       │   └── ApiClient.java
-│       └── res/
-│           └── layout/activity_main.xml
-├── logs/                      # 训练日志
-├── .dvc/                      # DVC 配置
-├── environment.yml            # Conda 环境
-├── CLAUDE.md                  # 项目协议
-└── README.md                  # 本文档
-```
+Note on Data & Weights: Due to size constraints, the full 1.5GB raw dataset and the .pth model weights are excluded from version control. Please refer to data/sample/ for dataset hierarchy constraints if utilizing custom data.
 
----
-
-## 实验管理
-
-### WandB 可视化
-
-```bash
-# 登录 WandB
-wandb login
-
-# 查看实验
-wandb dashboard
-```
-
-### DVC 数据版本控制
-
-```bash
-# 追踪数据
-dvc add data/raw
-
-# 追踪模型
-dvc add checkpoints/
-
-# 提交
-git add .
-git commit -m "feat: trained baseline model"
-```
-
----
-
-## 优化与部署
-
-### 模型量化
-
-```python
-# 训练后量化 (INT8)
-import torch
-
-# 加载模型
-model = create_resnet_model()
-model.load_state_dict(torch.load('best_model.pth')['model_state_dict'])
-
-# 量化
-quantized_model = torch.quantization.quantize_dynamic(
-    model, {torch.nn.Linear}, dtype=torch.qint8
-)
-
-# 保存
-torch.save(quantized_model.state_dict(), 'model_quantized.pth')
-```
-
-### TensorRT 加速
-
-```bash
-# 转换 ONNX
-python experiments/convert_onnx.py \
-    --checkpoint checkpoints/best_model.pth \
-    --output model.onnx
-
-# TensorRT 转换
-trtexec --onnx=model.onnx --saveEngine=model.trt
-```
-
----
-
-## 常见问题
-
-**Q: 训练时显存不足?**
-A: 减小 batch_size 或使用梯度累积
-
-**Q: Android 应用无法连接服务器?**
-A: 检查 BASE_URL 配置，确保手机和服务器在同一网络
-
-**Q: 模型准确率不理想?**
-A: 尝试: 1) 增加数据量 2) 使用更强的数据增强 3) 超参数优化
-
----
-
-## 贡献指南
-
-详见 `CLAUDE.md` 项目协议。
-
-**核心原则:**
-- DRY: Don't Repeat Yourself
-- 原子提交: 每次 commit 完成一个独立功能
-- 全状态保存: checkpoint 必须包含 optimizer + scheduler
-
----
-
-## License
-
-MIT License
-
----
-
-## 联系方式
-
-- 项目作者: [Your Name]
-- 邮箱: [your.email@example.com]
-- GitHub: [https://github.com/yourusername/ecosort]
-
----
-
-**适用于大学计算机专业申请的完整项目，展示深度学习、移动开发、后端服务等全栈能力。**
