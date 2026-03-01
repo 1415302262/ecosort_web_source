@@ -86,4 +86,6 @@ delivery/
 =*
 
 # Claude internal
+.claude/
 .claude/.nfs*
+.nfs*
