@@ -1,0 +1,269 @@
+# EcoSort 类别映射配置
+# 用于合并 crawled_v1 (42类) + TrashNet (6类) + 上海标准大类标签
+
+# 上海垃圾分类标准（大类）
+super_categories:
+  recyclable: 可回收物
+  wet: 湿垃圾/厨余垃圾
+  dry: 干垃圾/其他垃圾
+  hazardous: 有害垃圾
+  special: 特殊处理
+
+# 42类细分类别映射
+categories:
+  # === 可回收物 (Recyclable) ===
+  cardboard:
+    id: 0
+    super_category: recyclable
+    name_cn: 纸板
+    trashnet_mapping: cardboard  # TrashNet对应类别
+  paper:
+    id: 1
+    super_category: recyclable
+    name_cn: 废纸
+    trashnet_mapping: paper
+  plastic:
+    id: 2
+    super_category: recyclable
+    name_cn: 塑料
+    trashnet_mapping: plastic
+  glass:
+    id: 3
+    super_category: recyclable
+    name_cn: 玻璃
+    trashnet_mapping: glass
+  metal:
+    id: 4
+    super_category: recyclable
+    name_cn: 金属
+    trashnet_mapping: metal
+  clothes:
+    id: 5
+    super_category: recyclable
+    name_cn: 旧衣物
+    trashnet_mapping: null
+  shoes:
+    id: 6
+    super_category: recyclable
+    name_cn: 旧鞋子
+    trashnet_mapping: null
+  bag:
+    id: 7
+    super_category: recyclable
+    name_cn: 包袋
+    trashnet_mapping: null
+  e_waste:
+    id: 8
+    super_category: recyclable
+    name_cn: 电子垃圾
+    trashnet_mapping: null
+  plastic_toy:
+    id: 9
+    super_category: recyclable
+    name_cn: 塑料玩具
+    trashnet_mapping: null
+
+  # === 有害垃圾 (Hazardous) ===
+  battery:
+    id: 10
+    super_category: hazardous
+    name_cn: 废电池
+    trashnet_mapping: null
+  bulb:
+    id: 11
+    super_category: hazardous
+    name_cn: 废灯泡
+    trashnet_mapping: null
+  chemical:
+    id: 12
+    super_category: hazardous
+    name_cn: 化学品容器
+    trashnet_mapping: null
+  paint:
+    id: 13
+    super_category: hazardous
+    name_cn: 油漆桶
+    trashnet_mapping: null
+  medicine:
+    id: 14
+    super_category: hazardous
+    name_cn: 过期药品
+    trashnet_mapping: null
+  thermometer:
+    id: 15
+    super_category: hazardous
+    name_cn: 温度计
+    trashnet_mapping: null
+  cosmetic:
+    id: 16
+    super_category: hazardous
+    name_cn: 化妆品容器
+    trashnet_mapping: null
+
+  # === 厨余/湿垃圾 (Kitchen/Wet) ===
+  fruit_peel:
+    id: 17
+    super_category: wet
+    name_cn: 果皮
+    trashnet_mapping: null
+  vegetable:
+    id: 18
+    super_category: wet
+    name_cn: 蔬菜下脚料
+    trashnet_mapping: null
+  leftover:
+    id: 19
+    super_category: wet
+    name_cn: 剩饭剩菜
+    trashnet_mapping: null
+  tea:
+    id: 20
+    super_category: wet
+    name_cn: 茶叶渣
+    trashnet_mapping: null
+  egg_shell:
+    id: 21
+    super_category: wet
+    name_cn: 蛋壳
+    trashnet_mapping: null
+  bone:
+    id: 22
+    super_category: wet
+    name_cn: 骨头
+    trashnet_mapping: null
+  flower:
+    id: 23
+    super_category: wet
+    name_cn: 枯萎花草
+    trashnet_mapping: null
+  cake:
+    id: 24
+    super_category: wet
+    name_cn: 糕点残渣
+    trashnet_mapping: null
+
+  # === 其他/干垃圾 (Other/Dry) ===
+  trash:
+    id: 25
+    super_category: dry
+    name_cn: 其他垃圾
+    trashnet_mapping: trash
+  cigarette:
+    id: 26
+    super_category: dry
+    name_cn: 烟头
+    trashnet_mapping: null
+  tissue:
+    id: 27
+    super_category: dry
+    name_cn: 脏纸巾
+    trashnet_mapping: null
+  chopsticks:
+    id: 28
+    super_category: dry
+    name_cn: 一次性筷子
+    trashnet_mapping: null
+  toothpick:
+    id: 29
+    super_category: dry
+    name_cn: 牙签
+    trashnet_mapping: null
+  cup:
+    id: 30
+    super_category: dry
+    name_cn: 一次性杯子
+    trashnet_mapping: null
+  mask:
+    id: 31
+    super_category: dry
+    name_cn: 废弃口罩
+    trashnet_mapping: null
+  ceramic:
+    id: 32
+    super_category: dry
+    name_cn: 陶瓷碎片
+    trashnet_mapping: null
+  brick:
+    id: 33
+    super_category: dry
+    name_cn: 碎砖块
+    trashnet_mapping: null
+  diaper:
+    id: 34
+    super_category: dry
+    name_cn: 纸尿裤
+    trashnet_mapping: null
+  wet_wipe:
+    id: 35
+    super_category: dry
+    name_cn: 湿纸巾
+    trashnet_mapping: null
+  plastic_bag:
+    id: 36
+    super_category: dry
+    name_cn: 脏塑料袋
+    trashnet_mapping: null
+  pen:
+    id: 37
+    super_category: dry
+    name_cn: 废笔
+    trashnet_mapping: null
+  comb:
+    id: 38
+    super_category: dry
+    name_cn: 梳子
+    trashnet_mapping: null
+  towel:
+    id: 39
+    super_category: dry
+    name_cn: 毛巾抹布
+    trashnet_mapping: null
+  lighter:
+    id: 40
+    super_category: dry
+    name_cn: 打火机
+    trashnet_mapping: null
+  foam:
+    id: 41
+    super_category: dry
+    name_cn: 泡沫塑料
+    trashnet_mapping: null
+
+# TrashNet到42类的映射（仅6类有对应关系）
+trashnet_to_42class:
+  cardboard: cardboard
+  glass: glass
+  metal: metal
+  paper: paper
+  plastic: plastic
+  trash: trash
+
+# 颜色敏感类别（需要控制颜色增强强度）
+color_sensitive_classes:
+  - glass
+  - plastic
+  - plastic_toy
+  - bottle
+
+# 纹理敏感类别（需要保留细节）
+texture_sensitive_classes:
+  - paper
+  - cardboard
+  - fabric
+  - textile
+
+# 易混淆类别组（用于困难样本挖掘）
+confusable_groups:
+  transparent_items:
+    - glass
+    - plastic
+    - plastic_toy
+  paper_items:
+    - paper
+    - cardboard
+    - tissue
+  food_waste:
+    - fruit_peel
+    - vegetable
+    - leftover
+    - cake

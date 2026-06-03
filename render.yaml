@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ecosort-web
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: bash scripts/render_start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ECOSORT_MODEL_PATH
+        value: checkpoints/best_model.pth

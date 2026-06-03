@@ -1,0 +1,671 @@
+# EcoSort 数据集类别映射配置
+# 将各种外部数据集的类别映射到 EcoSort 4 类系统
+
+# EcoSort 目标类别
+target_classes:
+  - recyclable    # 可回收物
+  - hazardous     # 有害垃圾
+  - kitchen       # 厨余垃圾
+  - other         # 其他垃圾
+
+# TrashNet 数据集映射 (6 -> 4)
+trashnet_mapping:
+  cardboard: recyclable
+  glass: recyclable
+  metal: recyclable
+  paper: recyclable
+  plastic: recyclable
+  trash: other
+
+# Garbage Classification 数据集映射
+# 常见类别: batteries, biological, brown-glass, cardboard, clothes,
+            # green-glass, metal, paper, plastic, shoes, trash, white-glass
+garbage_classification_mapping:
+  # 可回收物
+  cardboard: recyclable
+  paper: recyclable
+  plastic: recyclable
+  metal: recyclable
+  brown-glass: recyclable
+  green-glass: recyclable
+  white-glass: recyclable
+  clothes: recyclable  # 部分可回收
+
+  # 有害垃圾
+  batteries: hazardous
+
+  # 厨余垃圾
+  biological: kitchen
+
+  # 其他垃圾
+  shoes: other
+  trash: other
+
+# Waste Classification 数据集映射
+# 常见类别: organic, recyclable, hazardous, landfill
+waste_classification_mapping:
+  organic: kitchen
+  recyclable: recyclable
+  hazardous: hazardous
+  landfill: other
+
+# 自定义映射规则
+custom_rules:
+  # 如果类别名包含以下关键词，映射到对应类别
+  keyword_mapping:
+    recyclable:
+      - recycle
+      - plastic
+      - paper
+      - glass
+      - metal
+      - can
+      - bottle
+      - cardboard
+
+    hazardous:
+      - battery
+      - hazard
+      - toxic
+      - chemical
+      - medical
+      - pill
+      - tube
+
+    kitchen:
+      - food
+      - organic
+      - bio
+      - kitchen
+      - waste
+      - fruit
+      - vegetable
+
+    other:
+      - trash
+      - landfill
+      - residue
+      - general
+
+# ===== YOLO42 + 爬虫42 统一语义类映射（用于扩类训练） =====
+yolo_to_unified_mapping:
+  Aluminum can: aluminum_can
+  Cardboard: cardboard
+  Container for household chemicals: chemical_container
+  Glass bottle: glass_bottle
+  Liquid: liquid_container
+  Organic: organic_food
+  Paper: paper
+  Paper bag: paper_bag
+  Plastic bag: plastic_bag
+  Plastic bottle: plastic_bottle
+  Plastic cup: plastic_cup
+  Plastic shaker: plastic_shaker
+  Printing industry: printing_waste
+  Textile: textile
+  Tin: tin_can
+  Zip plastic bag: zip_plastic_bag
+  Electronics: e_waste
+  Ceramic: ceramic
+  Aerosols: aerosol_can
+  Disposable tableware: disposable_tableware
+  Milk bottle: milk_bottle
+  Paper cups: paper_cup
+  Plastic toys: plastic_toy
+  Wood: wood
+  Foil: foil
+  Tetra pack: tetra_pack
+  Scrap metal: scrap_metal
+  Iron utensils: metal_utensils
+  Unknown plastic: unknown_plastic
+  Plastic can: plastic_can
+  Plastic canister: plastic_canister
+  Plastic caps: plastic_caps
+  Plastic shavings: plastic_shavings
+  Combined plastic: combined_plastic
+  Cellulose: cellulose
+  Furniture: furniture
+  Metal shavings: metal_shavings
+  Paper shavings: paper_shavings
+  Papier mache: papier_mache
+  Aluminum caps: aluminum_caps
+  Postal packaging: postal_packaging
+  Stretch film: stretch_film
+
+crawler_to_unified_mapping:
+  cardboard: cardboard
+  glass: glass_bottle
+  metal: tin_can
+  paper: paper
+  plastic: plastic_bottle
+  plastic_bag: plastic_bag
+  e_waste: e_waste
+  plastic_toy: plastic_toy
+  clothes: textile
+  battery: battery
+  bulb: bulb
+  medicine: medicine
+  paint: paint
+  chemical: chemical_container
+  fruit_peel: organic_food
+  vegetable: organic_food
+  leftover: organic_food
+  bone: organic_food
+  egg_shell: organic_food
+  tea: organic_food
+  cake: organic_food
+  flower: organic_food
+  mask: mask
+  tissue: tissue
+  cigarette: cigarette
+  chopsticks: chopsticks
+  toothpick: toothpick
+  cup: plastic_cup
+  ceramic: ceramic
+  brick: brick
+  diaper: diaper
+  wet_wipe: wet_wipe
+  pen: pen
+  comb: comb
+  towel: towel
+  lighter: lighter
+  foam: foam
+  bag: bag
+  shoes: shoes
+  thermometer: thermometer
+  trash: general_trash
+  cosmetic: cosmetic
+
+# 扩类推荐：先从稳定16类扩到24类，再继续扩展
+expansion_plan_v1:
+  stage_base_16:
+    - aluminum_can
+    - cardboard
+    - chemical_container
+    - glass_bottle
+    - liquid_container
+    - organic_food
+    - paper
+    - paper_bag
+    - plastic_bag
+    - plastic_bottle
+    - plastic_cup
+    - plastic_shaker
+    - printing_waste
+    - textile
+    - tin_can
+    - zip_plastic_bag
+  stage_add_8:
+    - battery
+    - bulb
+    - medicine
+    - e_waste
+    - mask
+    - tissue
+    - cigarette
+    - trash
+
+# 扩类执行约束（用户确认版）
+expansion_policy_v2:
+  freeze_base_16_dataset: true
+  allow_crawler_for_new_class_names_only: true
+  exclude_crawler_if_semantic_overlap_with_base16:
+    - bone
+    - cake
+    - cardboard
+    - chemical
+    - clothes
+    - cup
+    - egg_shell
+    - flower
+    - fruit_peel
+    - glass
+    - leftover
+    - metal
+    - paper
+    - plastic
+    - plastic_bag
+    - tea
+    - vegetable
+  crawler_expand_only_classes:
+    - bag
+    - battery
+    - brick
+    - bulb
+    - ceramic
+    - chopsticks
+    - cigarette
+    - comb
+    - cosmetic
+    - diaper
+    - e_waste
+    - foam
+    - lighter
+    - mask
+    - medicine
+    - paint
+    - pen
+    - plastic_toy
+    - shoes
+    - thermometer
+    - tissue
+    - toothpick
+    - towel
+    - trash
+    - wet_wipe
+
+# ===== 日常投放场景映射（v1） =====
+# 目标：将 data/raw 的40+细粒度类合并为更接地气、可训练的约25类
+daily_life_mapping_v1:
+  target_classes:
+    - cardboard
+    - paper
+    - magazine_flyer
+    - glass_container
+    - metal_can
+    - textile
+    - paper_bag
+    - plastic_hard_container
+    - plastic_film_bag
+    - foam_eps
+    - food_waste
+    - bone_shell_hard
+    - ceramic
+    - battery
+    - bulb
+    - medicine
+    - e_waste
+    - household_chemical
+    - cigarette
+    - mask
+    - tissue_wetwipe
+    - diaper
+    - pen_stationery
+    - lighter
+    - residual_waste
+
+  # 建议剔除或不直接训练的“状态类/语义过宽类”
+  drop_raw_classes:
+    - Liquid
+
+  # raw 文件夹名 -> 目标训练类
+  raw_to_target:
+    cardboard: cardboard
+    Paper: paper
+    glass: glass_container
+    metal: metal_can
+    bag: plastic_film_bag
+    plastic_bag: plastic_film_bag
+    plastic: plastic_hard_container
+    Plastic shaker: plastic_hard_container
+    plastic_toy: plastic_hard_container
+    cup: plastic_hard_container
+    foam: foam_eps
+
+    leftover: food_waste
+    fruit_peel: food_waste
+    egg_shell: food_waste
+    vegetable: food_waste
+    cake: food_waste
+    tea: food_waste
+    flower: food_waste
+
+    bone: bone_shell_hard
+    ceramic: ceramic
+
+    battery: battery
+    bulb: bulb
+    medicine: medicine
+    e_waste: e_waste
+    chemical: household_chemical
+    paint: household_chemical
+    thermometer: household_chemical
+    cosmetic: household_chemical
+
+    cigarette: cigarette
+    mask: mask
+    tissue: tissue_wetwipe
+    wet_wipe: tissue_wetwipe
+    diaper: diaper
+    pen: pen_stationery
+    chopsticks: residual_waste
+    toothpick: residual_waste
+    comb: residual_waste
+    towel: textile
+    clothes: textile
+    shoes: textile
+    brick: residual_waste
+    lighter: lighter
+    Textile: textile
+    trash: residual_waste
+
+# ===== 日常投放场景映射（v3 紧凑版） =====
+# 目标：进一步降低混淆，服务真实投放场景
+# 策略：
+# - 将 diaper / foam / pen 并入 residual_waste（不删除数据）
+# - 合并 paper+cardboard+tissue/wet_wipe 为 paper_family
+# - 合并硬塑料+软塑料为 plastic
+# - 合并有害子类为 hazardous
+# - bone_shell_hard 并入 food_waste
+daily_life_mapping_v3:
+  target_classes:
+    - paper_family
+    - glass_container
+    - metal_can
+    - textile
+    - plastic
+    - food_waste
+    - hazardous
+    - ceramic
+    - mask
+    - cigarette
+    - residual_waste
+
+  drop_raw_classes:
+    - Liquid
+
+  raw_to_target:
+    cardboard: paper_family
+    Paper: paper_family
+    tissue: residual_waste
+    wet_wipe: residual_waste
+
+    glass: glass_container
+    metal: metal_can
+
+    bag: plastic
+    plastic_bag: residual_waste
+    plastic: plastic
+    Plastic shaker: plastic
+    plastic_toy: plastic
+    cup: plastic
+
+    leftover: food_waste
+    fruit_peel: food_waste
+    egg_shell: food_waste
+    vegetable: food_waste
+    cake: food_waste
+    tea: food_waste
+    flower: food_waste
+    bone: food_waste
+
+    battery: hazardous
+    bulb: hazardous
+    medicine: hazardous
+    e_waste: hazardous
+    chemical: hazardous
+    paint: hazardous
+    thermometer: hazardous
+    cosmetic: hazardous
+    lighter: hazardous
+
+    ceramic: ceramic
+    mask: mask
+    cigarette: cigarette
+
+    towel: textile
+    clothes: textile
+    shoes: textile
+    Textile: textile
+
+    chopsticks: residual_waste
+    toothpick: residual_waste
+    comb: residual_waste
+    brick: residual_waste
+    trash: residual_waste
+    diaper: residual_waste
+    foam: residual_waste
+    pen: residual_waste
+
+# ===== 日常投放场景映射（v4 分层版） =====
+# 目标：
+# 1) 训练使用细粒度标签（当前按 raw 直接训练，已去掉 Paper）
+# 2) 支持前端仅展示 4 大类（通过 fine_to_mid + mid_to_top 映射）
+daily_life_mapping_v4_hierarchical:
+  # 模型训练细类（当前数据下有效标签，不含 Paper）
+  target_classes:
+    - bag
+    - battery
+    - bone
+    - brick
+    - bulb
+    - cake
+    - cardboard
+    - ceramic
+    - chemical
+    - chopsticks
+    - cigarette
+    - clothes
+    - comb
+    - cosmetic
+    - cup
+    - diaper
+    - e_waste
+    - egg_shell
+    - flower
+    - foam
+    - fruit_peel
+    - glass
+    - leftover
+    - lighter
+    - mask
+    - medicine
+    - metal
+    - paint
+    - pen
+    - plastic
+    - plastic_bag
+    - Plastic shaker
+    - plastic_toy
+    - shoes
+    - tea
+    - Textile
+    - thermometer
+    - tissue
+    - toothpick
+    - towel
+    - trash
+    - vegetable
+    - wet_wipe
+
+  drop_raw_classes:
+    - Liquid
+    - Paper
+
+  # raw 文件夹名 -> 训练细类（此版按细类直接训练，不再并到11类）
+  raw_to_target:
+    bag: bag
+    battery: battery
+    bone: bone
+    brick: brick
+    bulb: bulb
+    cake: cake
+    cardboard: cardboard
+    ceramic: ceramic
+    chemical: chemical
+    chopsticks: chopsticks
+    cigarette: cigarette
+    clothes: clothes
+    comb: comb
+    cosmetic: cosmetic
+    cup: cup
+    diaper: diaper
+    e_waste: e_waste
+    egg_shell: egg_shell
+    flower: flower
+    foam: foam
+    fruit_peel: fruit_peel
+    glass: glass
+    leftover: leftover
+    lighter: lighter
+    mask: mask
+    medicine: medicine
+    metal: metal
+    paint: paint
+    pen: pen
+    plastic: plastic
+    plastic_bag: plastic_bag
+    Plastic shaker: Plastic shaker
+    plastic_toy: plastic_toy
+    shoes: shoes
+    tea: tea
+    Textile: Textile
+    thermometer: thermometer
+    tissue: tissue
+    toothpick: toothpick
+    towel: towel
+    trash: trash
+    vegetable: vegetable
+    wet_wipe: wet_wipe
+
+  # 细类 -> 中类（用于可解释与统计）
+  fine_to_mid:
+    cardboard: paper_family
+
+    cup: plastic
+    plastic: plastic
+    Plastic shaker: plastic
+    plastic_toy: plastic
+    plastic_bag: plastic
+
+    glass: glass
+    metal: metal
+
+    clothes: textile
+    shoes: textile
+    Textile: textile
+    towel: textile
+    bag: textile
+
+    e_waste: e_waste
+
+    bone: organic_food
+    cake: organic_food
+    egg_shell: organic_food
+    flower: organic_food
+    fruit_peel: organic_food
+    leftover: organic_food
+    tea: organic_food
+    vegetable: organic_food
+
+    battery: hazardous_materials
+    bulb: hazardous_materials
+    chemical: hazardous_materials
+    lighter: hazardous_materials
+    medicine: hazardous_materials
+    paint: hazardous_materials
+    thermometer: hazardous_materials
+
+    ceramic: ceramic
+
+    cigarette: hygiene_contaminated
+    mask: hygiene_contaminated
+    diaper: hygiene_contaminated
+    tissue: hygiene_contaminated
+    wet_wipe: hygiene_contaminated
+
+    brick: complex_misc
+    chopsticks: complex_misc
+    comb: complex_misc
+    foam: complex_misc
+    pen: complex_misc
+    toothpick: complex_misc
+    cosmetic: complex_misc
+
+    trash: trash
+
+  # 中类 -> 顶层四类（前端展示层）
+  mid_to_top:
+    paper_family: recyclable
+    plastic: recyclable
+    glass: recyclable
+    metal: recyclable
+    textile: recyclable
+    e_waste: recyclable
+
+    organic_food: kitchen
+
+    hazardous_materials: hazardous
+
+    ceramic: other
+    hygiene_contaminated: other
+    complex_misc: other
+    trash: other
+
+# ===== 日常投放场景映射（v5 14类版） =====
+# 目标：从 raw 42细类映射到 14 个训练类（不使用 11 类方案）
+# 说明：trash 当前数据中可为 0，但保留映射兜底到 complex_misc
+daily_life_mapping_v5_14class:
+  target_classes:
+    - paper_family
+    - plastic
+    - glass
+    - metal
+    - textile
+    - e_waste
+    - organic_food
+    - haz_battery
+    - haz_device
+    - haz_chemical
+    - haz_medicine
+    - ceramic
+    - hygiene_contaminated
+    - complex_misc
+
+  drop_raw_classes:
+    - Liquid
+
+  raw_to_target:
+    cardboard: paper_family
+    Paper: paper_family
+
+    cup: plastic
+    plastic: plastic
+    Plastic shaker: plastic
+    plastic_toy: plastic
+    plastic_bag: plastic
+
+    glass: glass
+    metal: metal
+
+    clothes: textile
+    shoes: textile
+    Textile: textile
+    towel: textile
+    bag: textile
+
+    e_waste: e_waste
+
+    bone: organic_food
+    cake: organic_food
+    egg_shell: organic_food
+    flower: organic_food
+    fruit_peel: organic_food
+    leftover: organic_food
+    tea: organic_food
+    vegetable: organic_food
+
+    battery: haz_battery
+    bulb: haz_device
+    thermometer: haz_device
+    chemical: haz_chemical
+    paint: haz_chemical
+    medicine: haz_medicine
+    lighter: haz_medicine
+
+    ceramic: ceramic
+
+    cigarette: hygiene_contaminated
+    mask: hygiene_contaminated
+    diaper: hygiene_contaminated
+    tissue: hygiene_contaminated
+    wet_wipe: hygiene_contaminated
+
+    brick: complex_misc
+    chopsticks: complex_misc
+    comb: complex_misc
+    foam: complex_misc
+    pen: complex_misc
+    toothpick: complex_misc
+    cosmetic: complex_misc
+    trash: complex_misc

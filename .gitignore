@@ -1,0 +1,73 @@
+# Data
+data/raw/
+data/proc/
+
+# Checkpoints
+checkpoints/*
+!checkpoints/README.md
+!checkpoints/.gitignore
+
+# Logs
+logs/
+*.log
+
+# DVC
+.dvc/config.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# WandB
+wandb/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Models (large files)
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.h5
+
+# Exception: include best model
+!checkpoints/best_model.pth

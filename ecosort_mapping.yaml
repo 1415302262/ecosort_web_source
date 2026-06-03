@@ -1,0 +1,81 @@
+# ===== EcoSort 数据映射与 OOD 兜底配置 =====
+
+ecosort_config:
+  # --------------------------------------------------
+  # 1. 算法层：真正参与模型训练的 14 个类（必须有真实图片数据）
+  # --------------------------------------------------
+  train_classes:
+    - paper_family
+    - plastic
+    - glass
+    - metal
+    - textile
+    - e_waste
+    - organic_food
+    - haz_battery
+    - haz_device
+    - haz_chemical
+    - haz_medicine
+    - ceramic
+    - hygiene_contaminated
+    - complex_misc
+
+  # --------------------------------------------------
+  # 2. 工程层：系统兜底类（无需数据，由 Flask 置信度逻辑触发）
+  # --------------------------------------------------
+  fallback_class: "trash"
+  confidence_threshold: 0.60  # 置信度低于 60% 则判定为无法识别 (trash)
+
+  # --------------------------------------------------
+  # 3. 映射逻辑：42 个原始数据 -> 14 个训练类
+  # --------------------------------------------------
+  raw_to_target:
+    # --- 可回收视觉特征 ---
+    cardboard: paper_family
+    cup: plastic
+    plastic: plastic
+    Plastic shaker: plastic
+    plastic_toy: plastic
+    plastic_bag: plastic
+    glass: glass
+    metal: metal
+    clothes: textile
+    shoes: textile
+    Textile: textile
+    towel: textile
+    bag: textile
+    e_waste: e_waste
+
+    # --- 有机物视觉特征 ---
+    bone: organic_food
+    cake: organic_food
+    egg_shell: organic_food
+    flower: organic_food
+    fruit_peel: organic_food
+    leftover: organic_food
+    tea: organic_food
+    vegetable: organic_food
+
+    # --- 危险品视觉特征拆分 ---
+    battery: haz_battery
+    bulb: haz_device
+    thermometer: haz_device
+    chemical: haz_chemical
+    paint: haz_chemical
+    lighter: haz_chemical
+    medicine: haz_medicine
+
+    # --- 兜底与复杂材质 ---
+    ceramic: ceramic
+    cigarette: hygiene_contaminated
+    mask: hygiene_contaminated
+    diaper: hygiene_contaminated
+    tissue: hygiene_contaminated
+    wet_wipe: hygiene_contaminated
+    brick: complex_misc
+    chopsticks: complex_misc
+    comb: complex_misc
+    foam: complex_misc
+    pen: complex_misc
+    toothpick: complex_misc
+    cosmetic: complex_misc
