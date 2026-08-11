@@ -1,0 +1,224 @@
+{
+  "primary_analysis_set": "test-side evaluation excluding confirmed cross-split exact duplicates",
+  "checkpoint_selection_leakage_warning": "The champion epoch was selected on the original validation split, which contained one train-validation exact duplicate. Post-hoc exclusion cannot remove its unquantified effect on checkpoint selection.",
+  "confirmed_leaked_validation_sample_ids": [
+    "val/haz_battery/haz_battery_000010.png"
+  ],
+  "confirmed_leaked_test_sample_ids": [
+    "test/haz_battery/haz_battery_000002.jpg"
+  ],
+  "full_test": {
+    "sample_count": 912,
+    "accuracy": 0.9122807017543859,
+    "precision_macro": 0.9176175630616802,
+    "recall_macro": 0.9099460569726031,
+    "f1_macro": 0.912626261015057,
+    "forward_latency": {
+      "mean_ms": 16.319083605419124,
+      "p50_ms": 15.472369268536568,
+      "p95_ms": 16.14302545785904,
+      "min_ms": 15.100069344043732,
+      "max_ms": 129.20992821455002
+    },
+    "end_to_end_latency": {
+      "mean_ms": 33.25395352664616,
+      "p50_ms": 25.977695360779762,
+      "p95_ms": 66.31323918700218,
+      "min_ms": 17.314095050096512,
+      "max_ms": 546.0788384079933
+    },
+    "per_class": {
+      "brick_ceramic": {
+        "precision": 0.9459459459459459,
+        "recall": 0.875,
+        "f1-score": 0.9090909090909091,
+        "support": 40.0
+      },
+      "e_waste": {
+        "precision": 0.875,
+        "recall": 0.875,
+        "f1-score": 0.875,
+        "support": 24.0
+      },
+      "foam": {
+        "precision": 0.85,
+        "recall": 0.85,
+        "f1-score": 0.85,
+        "support": 20.0
+      },
+      "glass": {
+        "precision": 0.88,
+        "recall": 1.0,
+        "f1-score": 0.9361702127659575,
+        "support": 44.0
+      },
+      "haz_battery": {
+        "precision": 0.9285714285714286,
+        "recall": 0.8666666666666667,
+        "f1-score": 0.896551724137931,
+        "support": 15.0
+      },
+      "haz_device": {
+        "precision": 0.9666666666666667,
+        "recall": 0.8787878787878788,
+        "f1-score": 0.9206349206349206,
+        "support": 33.0
+      },
+      "haz_medicine": {
+        "precision": 0.9459459459459459,
+        "recall": 0.8974358974358975,
+        "f1-score": 0.9210526315789473,
+        "support": 39.0
+      },
+      "hygiene_contaminated": {
+        "precision": 0.9647058823529412,
+        "recall": 0.8541666666666666,
+        "f1-score": 0.9060773480662984,
+        "support": 96.0
+      },
+      "metal": {
+        "precision": 0.9523809523809523,
+        "recall": 0.975609756097561,
+        "f1-score": 0.963855421686747,
+        "support": 41.0
+      },
+      "organic_food": {
+        "precision": 0.9156626506024096,
+        "recall": 0.9101796407185628,
+        "f1-score": 0.9129129129129129,
+        "support": 167.0
+      },
+      "paper_family": {
+        "precision": 0.9761904761904762,
+        "recall": 0.9534883720930233,
+        "f1-score": 0.9647058823529412,
+        "support": 43.0
+      },
+      "plastic": {
+        "precision": 0.893048128342246,
+        "recall": 0.8978494623655914,
+        "f1-score": 0.8954423592493298,
+        "support": 186.0
+      },
+      "small_hard_items": {
+        "precision": 0.872093023255814,
+        "recall": 0.974025974025974,
+        "f1-score": 0.9202453987730062,
+        "support": 77.0
+      },
+      "textile": {
+        "precision": 0.8804347826086957,
+        "recall": 0.9310344827586207,
+        "f1-score": 0.9050279329608939,
+        "support": 87.0
+      }
+    }
+  },
+  "leakage_excluded_test": {
+    "sample_count": 911,
+    "accuracy": 0.9121844127332601,
+    "precision_macro": 0.9172250983835013,
+    "recall_macro": 0.9092657848637595,
+    "f1_macro": 0.9120789156401253,
+    "forward_latency": {
+      "mean_ms": 16.319165920223284,
+      "p50_ms": 15.472326427698135,
+      "p95_ms": 16.133645549416542,
+      "min_ms": 15.100069344043732,
+      "max_ms": 129.20992821455002
+    },
+    "end_to_end_latency": {
+      "mean_ms": 32.80757655901783,
+      "p50_ms": 25.97738429903984,
+      "p95_ms": 65.62074646353722,
+      "min_ms": 17.314095050096512,
+      "max_ms": 546.0788384079933
+    },
+    "per_class": {
+      "brick_ceramic": {
+        "precision": 0.9459459459459459,
+        "recall": 0.875,
+        "f1-score": 0.9090909090909091,
+        "support": 40.0
+      },
+      "e_waste": {
+        "precision": 0.875,
+        "recall": 0.875,
+        "f1-score": 0.875,
+        "support": 24.0
+      },
+      "foam": {
+        "precision": 0.85,
+        "recall": 0.85,
+        "f1-score": 0.85,
+        "support": 20.0
+      },
+      "glass": {
+        "precision": 0.88,
+        "recall": 1.0,
+        "f1-score": 0.9361702127659575,
+        "support": 44.0
+      },
+      "haz_battery": {
+        "precision": 0.9230769230769231,
+        "recall": 0.8571428571428571,
+        "f1-score": 0.8888888888888888,
+        "support": 14.0
+      },
+      "haz_device": {
+        "precision": 0.9666666666666667,
+        "recall": 0.8787878787878788,
+        "f1-score": 0.9206349206349206,
+        "support": 33.0
+      },
+      "haz_medicine": {
+        "precision": 0.9459459459459459,
+        "recall": 0.8974358974358975,
+        "f1-score": 0.9210526315789473,
+        "support": 39.0
+      },
+      "hygiene_contaminated": {
+        "precision": 0.9647058823529412,
+        "recall": 0.8541666666666666,
+        "f1-score": 0.9060773480662984,
+        "support": 96.0
+      },
+      "metal": {
+        "precision": 0.9523809523809523,
+        "recall": 0.975609756097561,
+        "f1-score": 0.963855421686747,
+        "support": 41.0
+      },
+      "organic_food": {
+        "precision": 0.9156626506024096,
+        "recall": 0.9101796407185628,
+        "f1-score": 0.9129129129129129,
+        "support": 167.0
+      },
+      "paper_family": {
+        "precision": 0.9761904761904762,
+        "recall": 0.9534883720930233,
+        "f1-score": 0.9647058823529412,
+        "support": 43.0
+      },
+      "plastic": {
+        "precision": 0.893048128342246,
+        "recall": 0.8978494623655914,
+        "f1-score": 0.8954423592493298,
+        "support": 186.0
+      },
+      "small_hard_items": {
+        "precision": 0.872093023255814,
+        "recall": 0.974025974025974,
+        "f1-score": 0.9202453987730062,
+        "support": 77.0
+      },
+      "textile": {
+        "precision": 0.8804347826086957,
+        "recall": 0.9310344827586207,
+        "f1-score": 0.9050279329608939,
+        "support": 87.0
+      }
+    }
+  }
+}

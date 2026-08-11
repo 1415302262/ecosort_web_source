@@ -153,10 +153,8 @@ class TrashDataset(Dataset):
         # 加载图像
         try:
             image = Image.open(img_path).convert('RGB')
-        except Exception as e:
-            print(f"Error loading {img_path}: {e}")
-            # 返回一个空白图像
-            image = Image.new('RGB', (256, 256), color='white')
+        except Exception as exc:
+            raise RuntimeError(f"Failed to load dataset image: {img_path}") from exc
 
         selected_transform = self.transform
         if (
@@ -276,6 +274,7 @@ def create_dataloaders(
     class_names: Optional[List[str]] = None,
     strong_aug: bool = False,
     use_weighted_sampler: bool = False,
+    sampler_class_boosts: Optional[Dict[str, float]] = None,
     random_erasing_prob: float = 0.0,
     weak_class_names: Optional[List[str]] = None,
     weak_class_extra_aug: bool = False,
@@ -292,6 +291,7 @@ def create_dataloaders(
         class_names: 类别列表
         strong_aug: 是否使用强数据增强（用于42类细粒度分类）
         use_weighted_sampler: 是否使用加权采样（提升长尾类别召回）
+        sampler_class_boosts: 对指定类别额外提升采样权重
 
     Returns:
         train_loader, val_loader
@@ -331,10 +331,22 @@ def create_dataloaders(
     train_shuffle = True
     if use_weighted_sampler:
         class_counts = train_dataset.get_class_distribution()
+        sampler_class_boosts = sampler_class_boosts or {}
         sample_weights = [
-            1.0 / class_counts[train_dataset.class_names[label]]
+            (
+                1.0 / class_counts[train_dataset.class_names[label]]
+            ) * float(sampler_class_boosts.get(train_dataset.class_names[label], 1.0))
             for label in train_dataset.targets
         ]
+
+        if sampler_class_boosts:
+            print("Weighted sampler class boosts:")
+            for class_name, multiplier in sampler_class_boosts.items():
+                if class_name in train_dataset.class_to_idx:
+                    print(f"  {class_name:20s}: x{float(multiplier):.2f}")
+                else:
+                    print(f"  {class_name:20s}: skipped (not found)")
+
         train_sampler = WeightedRandomSampler(
             weights=sample_weights,
             num_samples=len(sample_weights),

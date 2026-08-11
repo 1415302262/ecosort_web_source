@@ -669,3 +669,105 @@ daily_life_mapping_v5_14class:
     toothpick: complex_misc
     cosmetic: complex_misc
     trash: complex_misc
+
+# ===== 日常投放场景映射（v6 15类优化版） =====
+# 优化策略：
+# 1. haz_chemical 并入 plastic（视觉相似，互混淆严重）
+# 2. complex_misc 拆分为3类：
+#    - small_hard_items: 细长小物品（chopsticks, pen, toothpick, comb）
+#    - foam: 泡沫塑料（单独成类，视觉独特）
+#    - brick_ceramic: 块状硬质材料（brick, ceramic）
+# 3. cosmetic 并入 plastic（本质是塑料容器）
+# 4. trash 删除（无实际数据）
+daily_life_mapping_v6_15class:
+  target_classes:
+    - paper_family
+    - plastic
+    - glass
+    - metal
+    - textile
+    - e_waste
+    - organic_food
+    - haz_battery
+    - haz_device
+    - haz_medicine
+    - hygiene_contaminated
+    - small_hard_items
+    - foam
+    - brick_ceramic
+
+  drop_raw_classes:
+    - Liquid
+    - trash  # 删除兜底类
+
+  raw_to_target:
+    # 纸品类
+    cardboard: paper_family
+    Paper: paper_family
+
+    # 塑料类（并入 haz_chemical + cosmetic）
+    cup: plastic
+    plastic: plastic
+    Plastic shaker: plastic
+    plastic_toy: plastic
+    plastic_bag: plastic
+    chemical: plastic        # ← 原 haz_chemical
+    paint: plastic           # ← 原 haz_chemical
+    cosmetic: plastic        # ← 原 complex_misc
+
+    # 玻璃类
+    glass: glass
+
+    # 金属类
+    metal: metal
+
+    # 纺织品类
+    clothes: textile
+    shoes: textile
+    Textile: textile
+    towel: textile
+    bag: textile
+
+    # 电子废弃物
+    e_waste: e_waste
+
+    # 厨余/有机
+    bone: organic_food
+    cake: organic_food
+    egg_shell: organic_food
+    flower: organic_food
+    fruit_peel: organic_food
+    leftover: organic_food
+    tea: organic_food
+    vegetable: organic_food
+
+    # 有害-电池
+    battery: haz_battery
+
+    # 有害-设备
+    bulb: haz_device
+    thermometer: haz_device
+
+    # 有害-药品
+    medicine: haz_medicine
+    lighter: haz_medicine
+
+    # 受污染用品
+    cigarette: hygiene_contaminated
+    mask: hygiene_contaminated
+    diaper: hygiene_contaminated
+    tissue: hygiene_contaminated
+    wet_wipe: hygiene_contaminated
+
+    # 细长硬质小物品（原 complex_misc 拆出）
+    chopsticks: small_hard_items
+    pen: small_hard_items
+    toothpick: small_hard_items
+    comb: small_hard_items
+
+    # 泡沫塑料（原 complex_misc 拆出）
+    foam: foam
+
+    # 砖块陶瓷（原 complex_misc 拆出）
+    brick: brick_ceramic
+    ceramic: brick_ceramic

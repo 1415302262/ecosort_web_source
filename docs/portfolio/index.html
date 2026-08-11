@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EcoSort｜Local–VLM Adaptive Cascade</title>
+  <style>
+    :root { --ink:#17212b; --muted:#66717d; --blue:#0f4d92; --pale:#eef4fb; --green:#257a3e; --red:#a83b3b; --line:#dce3ea; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); font-family:Inter,"Noto Sans SC","Microsoft YaHei",sans-serif; background:#f7f9fb; line-height:1.65; }
+    main { width:min(1120px, calc(100% - 32px)); margin:32px auto 64px; }
+    .hero,.section { background:white; border:1px solid var(--line); border-radius:18px; box-shadow:0 8px 28px rgba(23,33,43,.05); }
+    .hero { padding:44px; background:linear-gradient(135deg,#fff 0%,var(--pale) 100%); }
+    h1 { margin:0 0 8px; font-size:clamp(30px,5vw,52px); line-height:1.12; letter-spacing:-.03em; }
+    h2 { margin:0 0 18px; font-size:25px; }
+    h3 { margin:0 0 6px; font-size:16px; }
+    p { margin:8px 0; }
+    .subtitle { max-width:850px; color:var(--muted); font-size:18px; }
+    .flow { display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; align-items:center; }
+    .flow span { padding:8px 12px; border-radius:999px; background:white; border:1px solid #cad8e8; font-weight:650; font-size:14px; }
+    .flow b { color:var(--blue); }
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:20px 0; }
+    .card { padding:18px; border-radius:14px; background:white; border:1px solid var(--line); }
+    .value { display:block; font-size:29px; font-weight:800; color:var(--blue); letter-spacing:-.02em; }
+    .label { color:var(--muted); font-size:13px; }
+    .section { padding:30px; margin-top:20px; }
+    .figure { width:100%; border:1px solid var(--line); border-radius:12px; background:white; }
+    table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+    th,td { padding:11px 10px; border-bottom:1px solid var(--line); text-align:right; }
+    th:first-child,td:first-child { text-align:left; }
+    th { color:var(--muted); font-size:13px; }
+    .gain { color:var(--green); font-weight:750; }
+    .risk { color:var(--red); }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+    ul { margin:8px 0 0; padding-left:20px; }
+    code { background:#eef1f4; border-radius:5px; padding:2px 5px; }
+    a { color:var(--blue); }
+    footer { color:var(--muted); font-size:13px; text-align:center; margin-top:24px; }
+    @media(max-width:800px){ .grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.hero{padding:28px}.section{padding:22px} }
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>EcoSort</h1>
+    <p class="subtitle">面向真实部署约束的 Local–VLM 自适应多模态分类级联：用本地 EfficientNet-B3 处理多数请求，只把低置信样本交给 Doubao-Seed-2.0-Lite。</p>
+    <div class="flow"><span>Local Model</span><b>→</b><span>Uncertainty</span><b>→</b><span>Adaptive Routing</span><b>→</b><span>VLM Fallback</span><b>→</b><span>Evaluation</span></div>
+  </section>
+
+  <section class="grid" aria-label="headline metrics">
+    <div class="card"><span class="value">96.34%</span><span class="label">Cascade Macro-F1</span></div>
+    <div class="card"><span class="value">+5.13 pp</span><span class="label">Paired Macro-F1 gain</span></div>
+    <div class="card"><span class="value">15.59%</span><span class="label">Actual VLM call rate</span></div>
+    <div class="card"><span class="value">+45</span><span class="label">Net Corrected samples</span></div>
+  </section>
+
+  <section class="section">
+    <h2>核心结果 / Main result</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Accuracy</th><th>Macro-P</th><th>Macro-R</th><th>Macro-F1</th><th>P95 latency</th></tr></thead>
+      <tbody>
+        <tr><td>Local EfficientNet-B3</td><td>91.218%</td><td>91.723%</td><td>90.927%</td><td>91.208%</td><td>65.6 ms</td></tr>
+        <tr><td>+ Confidence routing + VLM</td><td class="gain">96.158%</td><td class="gain">96.744%</td><td class="gain">96.117%</td><td class="gain">96.337%</td><td class="risk">4.14 s</td></tr>
+      </tbody>
+    </table>
+    <p>固定测试集 n=911；<code>confidence &lt; 0.85</code>；真实调用 142 次，140 次成功、2 次失败并保留 local。Macro-F1 配对 bootstrap 95% CI 为 <strong>+3.33 至 +7.28 pp</strong>，McNemar exact <strong>p=7.05×10⁻¹¹</strong>。</p>
+  </section>
+
+  <section class="section">
+    <h2>效果—延迟—调用量闭环</h2>
+    <img class="figure" src="assets/ecosort_cascade_summary.svg" alt="EcoSort paired performance, error accounting, per-class change, and latency distribution">
+  </section>
+
+  <section class="section cols">
+    <div>
+      <h2>为什么有净收益</h2>
+      <ul>
+        <li>路由样本中包含56个本地错误，VLM修正49个。</li>
+        <li>86个原本正确的 routed 样本中，仅4个被改错。</li>
+        <li>routed subset Accuracy 从60.56%升至92.25%。</li>
+        <li>84.41%请求仍走本地路径，因此总体P50仅27.4 ms。</li>
+      </ul>
+    </div>
+    <div>
+      <h2>明确边界</h2>
+      <ul>
+        <li>全链路P95升至4.14秒，不适合强亚秒同步SLA。</li>
+        <li>一个请求触发图像像素上限，一个输出为未映射 <code>trash</code>。</li>
+        <li><code>tissue</code>、<code>tea</code> 等目录标签混合材质与处置语义。</li>
+        <li>结论只覆盖一个checkpoint、一个VLM版本和固定阈值。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>可审计交付</h2>
+    <p><a href="data/summary.json">Summary JSON</a> · <a href="data/per_class_delta.csv">Per-class delta</a> · <a href="data/routed_transitions.csv">Routed transitions</a> · <a href="data/bad_cases.csv">Bad cases</a> · <a href="data/SHA256SUMS.txt">Checksums</a></p>
+    <p>所有展示数字均由固定测试集逐样本结果生成；公开数据包不含API Key、Provider response ID、主机绝对路径或原始受版权约束图片。</p>
+  </section>
+
+  <footer>EcoSort portfolio release · 2026-08-11 · No retraining or threshold retuning in the cascade experiment</footer>
+</main>
+</body>
+</html>

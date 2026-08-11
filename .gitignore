@@ -68,6 +68,14 @@ wandb/
 *.ckpt
 *.pkl
 *.h5
+*.tiff
 
 # Exception: include best model
 !checkpoints/best_model.pth
+
+# Local experiment/runtime artifacts that must never be published
+reports/ecosort_experiment_results/raw/
+reports/ecosort_experiment_results/vlm/
+reports/ecosort_experiment_results/vlm_*/vlm_response_cache.jsonl
+reports/ecosort_experiment_results/vlm_*/vlm_attempt_ledger.jsonl
+reports/qa_render_*/
