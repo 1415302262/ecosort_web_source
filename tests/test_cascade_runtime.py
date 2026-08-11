@@ -13,12 +13,20 @@ from src.inference.cascade import (
     AUDITED_CLASS_NAMES,
     AUDITED_CONFIDENCE_THRESHOLD,
     AUDITED_IMAGE_SIZE,
+    AUDITED_VLM_MODEL,
+    AUDITED_VLM_PROMPT_SHA256,
+    AUDITED_VLM_PROMPT_VERSION,
     CascadePolicy,
     RuntimeTelemetry,
     map_vlm_label,
     runtime_parity,
 )
-from src.inference.seed_vlm import SeedClientConfig, SeedVLMClient
+from src.inference.seed_vlm import (
+    PROMPT,
+    PROMPT_SHA256,
+    SeedClientConfig,
+    SeedVLMClient,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +84,12 @@ def test_runtime_parity_requires_all_audited_dimensions():
         class_names=AUDITED_CLASS_NAMES,
         image_size=AUDITED_IMAGE_SIZE,
         confidence_threshold=AUDITED_CONFIDENCE_THRESHOLD,
+        provider_model=AUDITED_VLM_MODEL,
+        prompt_version=AUDITED_VLM_PROMPT_VERSION,
+        prompt_sha256=AUDITED_VLM_PROMPT_SHA256,
+        raw_to_target=yaml.safe_load((ROOT / "ecosort_mapping.yaml").read_text())[
+            "ecosort_config"
+        ]["raw_to_target"],
     )
     assert exact["audited_parity"]
     mismatch = runtime_parity(
@@ -83,9 +97,22 @@ def test_runtime_parity_requires_all_audited_dimensions():
         class_names=AUDITED_CLASS_NAMES,
         image_size=AUDITED_IMAGE_SIZE,
         confidence_threshold=AUDITED_CONFIDENCE_THRESHOLD,
+        provider_model=AUDITED_VLM_MODEL,
+        prompt_version=AUDITED_VLM_PROMPT_VERSION,
+        prompt_sha256=AUDITED_VLM_PROMPT_SHA256,
+        raw_to_target=yaml.safe_load((ROOT / "ecosort_mapping.yaml").read_text())[
+            "ecosort_config"
+        ]["raw_to_target"],
     )
     assert not mismatch["audited_parity"]
     assert not mismatch["checks"]["checkpoint_sha256"]
+
+
+def test_online_seed_prompt_is_locked_to_completed_experiment_contract():
+    assert PROMPT_SHA256 == AUDITED_VLM_PROMPT_SHA256
+    assert "Also provide its coarse category" in PROMPT
+    assert '"third label"' in PROMPT
+    assert "42 labels" in PROMPT
 
 
 def test_runtime_mapping_file_is_locked_to_audited_policy():

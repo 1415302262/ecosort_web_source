@@ -10,7 +10,7 @@
 conda run -n cptac bash scripts/release_check.sh
 ```
 
-门禁会完成 Python 编译检查、部署脚本语法检查、19 项级联/缓存/预算回归测试、公开产物指标与 SHA256 校验、隐私扫描和 `git diff --check`。CI 不读取 API Key，不访问 VLM，也不会消耗免费额度。
+门禁会完成 Python 编译检查、部署脚本语法检查、20 项级联/缓存/预算回归测试、公开产物指标与 SHA256 校验、隐私扫描和 `git diff --check`。CI 不读取 API Key，不访问 VLM，也不会消耗免费额度。
 
 合并到 `main` 后，GitHub Pages 工作流自动发布 `docs/portfolio/` 与实验报告 PDF。该展示完全静态，不需要 checkpoint、GPU 或云 API。
 
@@ -22,6 +22,7 @@ conda run -n cptac bash scripts/release_check.sh
 - 类别顺序与固定 14 类完全一致；
 - 输入为 224 像素 letterbox；
 - 路由规则为 `confidence < 0.85`。
+- Seed 模型名、实验 prompt version 与规范化 42→14 mapping 签名一致。
 
 仓库中的 134 字节 Git LFS pointer 不是模型权重。部署时必须拉取 LFS 对象，或把真实权重放在受控对象存储，并通过 Render secret `ECOSORT_MODEL_URL` 下载。启动脚本会先校验大小、LFS pointer 和 SHA256；校验失败时只保留静态页面与健康检查，`/predict` 不可用。
 

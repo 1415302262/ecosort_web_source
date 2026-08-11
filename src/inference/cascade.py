@@ -6,6 +6,8 @@ tools can share the audited routing semantics without importing Torch.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import threading
 from collections import Counter, deque
@@ -18,6 +20,14 @@ AUDITED_CONFIDENCE_THRESHOLD = 0.85
 AUDITED_IMAGE_SIZE = 224
 AUDITED_CHECKPOINT_SHA256 = (
     "9ba817cdf0712b597e1eb322d722e130707d60d6733cf46d8d87149456946234"
+)
+AUDITED_VLM_MODEL = "doubao-seed-2-0-lite-260428"
+AUDITED_VLM_PROMPT_VERSION = "seed2_lite_42class_same_semantics_2026-08-10_v1"
+AUDITED_VLM_PROMPT_SHA256 = (
+    "8152405fb89d4719b2c0519b4b12813c5144c1c55ef7e3ce2b66c3fbde93a3d3"
+)
+AUDITED_MAPPING_SHA256 = (
+    "8ef85a8b3b576e086081caef737427ad5d4f766c3d59f29a611a4a5266394dcd"
 )
 AUDITED_CLASS_NAMES = (
     "brick_ceramic",
@@ -95,14 +105,29 @@ def map_vlm_label(
     return mapped if mapped in AUDITED_CLASS_NAMES else None
 
 
+def mapping_sha256(raw_to_target: Mapping[str, str]) -> str:
+    normalized = {
+        normalize_label(source): normalize_label(target)
+        for source, target in raw_to_target.items()
+    }
+    payload = json.dumps(
+        normalized, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def runtime_parity(
     *,
     checkpoint_sha256: Optional[str],
     class_names: Sequence[str],
     image_size: int,
     confidence_threshold: float,
+    provider_model: Optional[str],
+    prompt_version: Optional[str],
+    prompt_sha256: Optional[str],
+    raw_to_target: Mapping[str, str],
 ) -> Dict[str, Any]:
-    checks = {
+    local_routing_checks = {
         "checkpoint_sha256": checkpoint_sha256 == AUDITED_CHECKPOINT_SHA256,
         "class_names": tuple(class_names) == AUDITED_CLASS_NAMES,
         "image_size": int(image_size) == AUDITED_IMAGE_SIZE,
@@ -110,8 +135,17 @@ def runtime_parity(
             float(confidence_threshold), AUDITED_CONFIDENCE_THRESHOLD, abs_tol=1e-12
         ),
     }
+    cascade_checks = {
+        "provider_model": provider_model == AUDITED_VLM_MODEL,
+        "prompt_version": prompt_version == AUDITED_VLM_PROMPT_VERSION,
+        "prompt_sha256": prompt_sha256 == AUDITED_VLM_PROMPT_SHA256,
+        "mapping_sha256": mapping_sha256(raw_to_target) == AUDITED_MAPPING_SHA256,
+    }
+    checks = {**local_routing_checks, **cascade_checks}
     return {
         "audited_parity": all(checks.values()),
+        "audited_local_routing_parity": all(local_routing_checks.values()),
+        "audited_cascade_parity": all(checks.values()),
         "checks": checks,
         "expected_checkpoint_sha256": AUDITED_CHECKPOINT_SHA256,
     }

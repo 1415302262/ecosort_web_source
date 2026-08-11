@@ -24,24 +24,42 @@ from typing import Any, Dict, Optional
 import requests
 from PIL import Image
 
+from .cascade import AUDITED_VLM_MODEL, AUDITED_VLM_PROMPT_VERSION
 
-DEFAULT_MODEL = "doubao-seed-2-0-lite-260428"
+
+DEFAULT_MODEL = AUDITED_VLM_MODEL
 DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 DEFAULT_TIMEOUT_SECONDS = 120
 ARK_SAFE_TOTAL_IMAGE_PIXELS = 35_000_000
-PROMPT_VERSION = "ecosort_42class_2026-08-10_v1"
+PROMPT_VERSION = AUDITED_VLM_PROMPT_VERSION
 
 
 PROMPT = """
-You are a top expert in waste classification standards. Identify the main
-object and select exactly one label from: cardboard, glass, metal, paper,
-plastic, clothes, shoes, bag, e_waste, plastic_toy, battery, bulb, chemical,
-paint, medicine, thermometer, cosmetic, fruit_peel, vegetable, leftover, tea,
-egg_shell, bone, flower, cake, cigarette, tissue, chopsticks, toothpick, cup,
-mask, ceramic, brick, diaper, wet_wipe, plastic_bag, pen, comb, towel, lighter,
-foam, trash. Return only JSON with keys class_name, confidence and
-top_predictions. Do not add Markdown or explanation.
+You are a top expert in waste classification standards.
+Identify the main object in the image and strictly select the most accurate
+classification from the following 42 labels:
+cardboard, glass, metal, paper, plastic, clothes, shoes, bag, e_waste,
+plastic_toy, battery, bulb, chemical, paint, medicine, thermometer, cosmetic,
+fruit_peel, vegetable, leftover, tea, egg_shell, bone, flower, cake,
+cigarette, tissue, chopsticks, toothpick, cup, mask, ceramic, brick, diaper,
+wet_wipe, plastic_bag, pen, comb, towel, lighter, foam, trash.
+Also provide its coarse category (recyclable, hazardous, kitchen, other).
+
+Return the top three classifications and confidence values from 0 to 1.  The
+first item must have the highest confidence.  Output only one valid JSON object
+with exactly this structure and no Markdown fence or explanation:
+{
+  "class_name": "one of the 42 labels",
+  "coarse_category": "recyclable/hazardous/kitchen/other",
+  "confidence": 0.95,
+  "top_predictions": [
+    {"class_name": "first label", "confidence": 0.95},
+    {"class_name": "second label", "confidence": 0.04},
+    {"class_name": "third label", "confidence": 0.01}
+  ]
+}
 """.strip()
+PROMPT_SHA256 = hashlib.sha256(PROMPT.encode("utf-8")).hexdigest()
 
 
 def _append_jsonl(path: Path, row: Dict[str, Any]) -> None:

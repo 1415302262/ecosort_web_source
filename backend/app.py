@@ -35,6 +35,10 @@ from src.inference.cascade import (
     runtime_parity,
 )
 from src.inference.seed_vlm import SeedVLMClient
+from src.inference.seed_vlm import (
+    PROMPT_SHA256 as SEED_PROMPT_SHA256,
+    PROMPT_VERSION as SEED_PROMPT_VERSION,
+)
 
 
 app = Flask(__name__, static_folder='static')
@@ -597,6 +601,10 @@ def load_model(model_path: str, model_type: str = None, num_classes: int = None)
         class_names=class_names,
         image_size=inference_image_size,
         confidence_threshold=confidence_threshold,
+        provider_model=seed_vlm_client.config.model,
+        prompt_version=SEED_PROMPT_VERSION,
+        prompt_sha256=SEED_PROMPT_SHA256,
+        raw_to_target=runtime_raw_to_target,
     )
 
     # 创建预处理变换（默认 256，可通过环境变量 ECOSORT_INFER_IMAGE_SIZE 覆盖）
