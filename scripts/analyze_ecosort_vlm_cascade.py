@@ -103,7 +103,7 @@ def main() -> None:
     parser.add_argument("--mapping-yaml", default="configs/dataset_mapping.yaml")
     parser.add_argument("--backend-path", default="backend/app.py")
     parser.add_argument("--vlm-dir", default="reports/ecosort_experiment_results/vlm")
-    parser.add_argument("--provider", choices=("gemini", "seed"), default="gemini")
+    parser.add_argument("--provider", choices=("gemini", "seed"), default="seed")
     args = parser.parse_args()
 
     vlm_dir = Path(args.vlm_dir).resolve()

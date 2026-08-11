@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Run the existing EcoSort Gemini fallback with a hard call cap and cache.
+"""Legacy Gemini experiment harness with a hard call cap and cache.
 
-The default invocation is a no-cost dry run that writes the exact call plan.
-External requests require ``--execute`` and ``ECOSORT_GEMINI_API_KEY``. Every
+The active EcoSort cascade uses the Seed runner. This retained harness requires
+an explicit compatible backend helper and is covered by no-network regression
+tests. External requests require ``--execute`` and ``ECOSORT_GEMINI_API_KEY``. Every
 attempt is durably reserved in a locked JSONL ledger before the request; the
 result cache is appended separately. An interrupted run therefore consumes a
 budget slot conservatively instead of repeating a possibly paid call.
@@ -186,6 +187,11 @@ def main() -> None:
     parser.add_argument("--predictions-csv", default="reports/ecosort_experiment_results/raw/local_predictions_test.csv")
     parser.add_argument("--overlap-csv", default="reports/ecosort_experiment_results/data_audit/cross_split_overlaps.csv")
     parser.add_argument("--mapping-yaml", default="configs/dataset_mapping.yaml")
+    parser.add_argument(
+        "--backend-path",
+        required=True,
+        help="Backend source containing the legacy _call_vlm_primary helper.",
+    )
     parser.add_argument("--output-dir", default="reports/ecosort_experiment_results/vlm")
     parser.add_argument("--max-calls", type=int, default=HARD_MAX_CALLS)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_CALL_TIMEOUT_SECONDS)
@@ -218,7 +224,7 @@ def main() -> None:
     frame.to_csv(plan_path, index=False)
 
     mapping_path = Path(args.mapping_yaml).resolve()
-    backend_path = Path("backend/app.py").resolve()
+    backend_path = Path(args.backend_path).resolve()
     mapping = load_v6_mapping(mapping_path)
     mapping_sha256 = sha256_file(mapping_path)
     prompt_source_sha256 = function_source_sha256(backend_path, "_call_vlm_primary")

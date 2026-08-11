@@ -18,13 +18,5 @@ jobs:
           cache: pip
       - name: Install lightweight test dependencies
         run: pip install -r requirements-ci.txt
-      - name: Compile experiment scripts
-        run: |
-          python -m py_compile \
-            scripts/run_ecosort_vlm_fallback.py \
-            scripts/run_ecosort_seed_vlm_fallback.py \
-            scripts/analyze_ecosort_vlm_cascade.py \
-            scripts/analyze_ecosort_cascade_robustness.py \
-            scripts/plot_ecosort_cascade_portfolio.py
-      - name: Run no-network Seed adapter tests
-        run: pytest -q tests/test_seed_vlm_unit.py
+      - name: Run no-network release gate
+        run: bash scripts/release_check.sh

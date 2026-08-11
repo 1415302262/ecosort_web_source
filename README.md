@@ -4,7 +4,7 @@
 [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[Portfolio results](docs/portfolio/index.html) · [Experiment report](reports/ecosort_experiment_report.md) · [Reproduction guide](reports/EXPERIMENT_REPRO.md)
+[Portfolio results](docs/portfolio/index.html) · [Experiment report](reports/ecosort_experiment_report.md) · [Reproduction guide](reports/EXPERIMENT_REPRO.md) · [Automation/deployment](docs/AUTOMATION_AND_DEPLOYMENT.md)
 
 ---
 
@@ -209,6 +209,8 @@ The project is not a single notebook experiment. It is a multi-stage system with
 - The published metrics use champion SHA256 `9ba817cdf0712b597e1eb322d722e130707d60d6733cf46d8d87149456946234`; runtime health checks must report the same hash before claiming audited parity.
 - API keys are read from environment variables or protected local files and never exported with public results.
 - The completed experiment used a permanent 142-attempt ledger; reruns cannot silently exceed that budget.
+- A single no-network release command checks runtime policy, cache/budget safety, public metrics, checksums and privacy: `conda run -n cptac bash scripts/release_check.sh`.
+- GitHub Pages publishes the verified portfolio without a checkpoint or API key; the online API keeps VLM execution and its call budget at zero by default.
 
 ---
 

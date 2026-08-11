@@ -79,3 +79,5 @@ reports/ecosort_experiment_results/vlm/
 reports/ecosort_experiment_results/vlm_*/vlm_response_cache.jsonl
 reports/ecosort_experiment_results/vlm_*/vlm_attempt_ledger.jsonl
 reports/qa_render_*/
+runtime/
+*.download
