@@ -37,13 +37,21 @@ class EfficientNetClassifier(nn.Module):
         self.num_classes = num_classes
         self.backbone_name = backbone
 
-        # 加载预训练 EfficientNet
-        self.backbone = EfficientNet.from_pretrained(
-            backbone if pretrained else 'efficientnet-b0',
-            num_classes=num_classes,
-            dropout_rate=dropout,
-            drop_connect_rate=drop_connect_rate
-        )
+        # 加载 EfficientNet（确保在 pretrained=False 时也使用指定 backbone）
+        if pretrained:
+            self.backbone = EfficientNet.from_pretrained(
+                backbone,
+                num_classes=num_classes,
+                dropout_rate=dropout,
+                drop_connect_rate=drop_connect_rate
+            )
+        else:
+            self.backbone = EfficientNet.from_name(
+                backbone,
+                num_classes=num_classes,
+                dropout_rate=dropout,
+                drop_connect_rate=drop_connect_rate
+            )
 
         # 获取特征维度
         if 'b0' in backbone:

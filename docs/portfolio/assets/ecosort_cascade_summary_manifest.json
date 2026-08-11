@@ -1,0 +1,17 @@
+{
+  "figure": "ecosort_cascade_summary",
+  "source_test_samples": 911,
+  "excluded_rows": 0,
+  "panels": [
+    "paired metrics",
+    "error accounting",
+    "per-class delta",
+    "latency ECDF"
+  ],
+  "outputs": [
+    "docs/portfolio/assets/ecosort_cascade_summary.svg",
+    "docs/portfolio/assets/ecosort_cascade_summary.pdf",
+    "docs/portfolio/assets/ecosort_cascade_summary.png",
+    "docs/portfolio/assets/ecosort_cascade_summary.tiff"
+  ]
+}

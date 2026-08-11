@@ -1,0 +1,99 @@
+{
+  "release": "ecosort-portfolio-2026-08-11",
+  "evaluation_status": "completed",
+  "test_sample_count": 911,
+  "routing": {
+    "strategy": "confidence_only",
+    "threshold": 0.85,
+    "local_coverage": 0.8441273326015368,
+    "actual_vlm_call_rate": 0.15587266739846323,
+    "actual_calls": 142,
+    "successful_calls": 140,
+    "failed_or_unmapped_calls": 2
+  },
+  "model": {
+    "local": "EfficientNet-B3",
+    "vlm": "doubao-seed-2-0-lite-260428"
+  },
+  "local_metrics": {
+    "accuracy": 0.9121844127332601,
+    "precision_macro": 0.9172250983835013,
+    "recall_macro": 0.9092657848637595,
+    "f1_macro": 0.9120789156401253
+  },
+  "cascade_metrics": {
+    "accuracy": 0.9615806805708014,
+    "precision_macro": 0.9674391814754311,
+    "recall_macro": 0.9611666141909261,
+    "f1_macro": 0.9633674228632408
+  },
+  "paired_delta": {
+    "accuracy": {
+      "estimate": 0.04939626783754125,
+      "ci95_low": 0.034028540065861757,
+      "ci95_high": 0.06476399560922064
+    },
+    "precision_macro": {
+      "estimate": 0.05021408309192976,
+      "ci95_low": 0.029121120051287974,
+      "ci95_high": 0.07346351375288118
+    },
+    "recall_macro": {
+      "estimate": 0.05190082932716655,
+      "ci95_low": 0.03234776634439451,
+      "ci95_high": 0.0744823911732101
+    },
+    "f1_macro": {
+      "estimate": 0.05128850722311551,
+      "ci95_low": 0.0332813645861294,
+      "ci95_high": 0.07275390181840502
+    }
+  },
+  "mcnemar_exact": {
+    "local_correct_cascade_wrong": 4,
+    "local_wrong_cascade_correct": 49,
+    "discordant_pair_count": 53,
+    "two_sided_p_value": 7.053979622639872e-11
+  },
+  "error_accounting": {
+    "routed_local_errors": 56,
+    "corrected": 49,
+    "uncorrected": 7,
+    "introduced": 4,
+    "net_corrected": 45,
+    "transition_counts": {
+      "local_correct_to_vlm_correct": 82,
+      "local_wrong_to_vlm_correct": 49,
+      "local_wrong_to_vlm_still_wrong": 7,
+      "local_correct_to_vlm_wrong": 4
+    }
+  },
+  "latency_ms": {
+    "cascade_all_samples": {
+      "mean_ms": 618.6004620981857,
+      "p50_ms": 27.444474399089813,
+      "p95_ms": 4139.525042846799
+    },
+    "vlm_attempts": {
+      "mean_ms": 3758.150131874521,
+      "p50_ms": 3739.9185467511415,
+      "p95_ms": 4926.169773750006
+    }
+  },
+  "provider_usage": {
+    "requests_with_usage_metadata": 141,
+    "requests_without_usage_metadata": 1,
+    "numeric_totals": {
+      "completion_tokens": 15102,
+      "prompt_tokens": 231211,
+      "total_tokens": 246313
+    }
+  },
+  "limitations": [
+    "One request failed the provider pixel limit and retained the local prediction.",
+    "One valid provider response returned the unmapped open-set label 'trash'.",
+    "Confidence intervals quantify fixed-test-set sampling uncertainty only.",
+    "Results cover one checkpoint, one provider version and one fixed threshold.",
+    "Directory-level labels contain material versus disposal-semantics ambiguity."
+  ]
+}

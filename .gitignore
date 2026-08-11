@@ -76,6 +76,7 @@ CHECKLIST.md
 # PDF & Documents
 *.pdf
 *.docx
+*.tiff
 
 # Temporary data
 data/audit_results/
