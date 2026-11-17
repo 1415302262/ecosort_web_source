@@ -48,6 +48,10 @@ class TrashDataset(Dataset):
             val_split: 验证集比例
             seed: 随机种子
         """
+        if split not in {'train', 'val', 'test'}:
+            raise ValueError('split must be train, val or test')
+        if not 0 < val_split < 1:
+            raise ValueError('val_split must be within (0, 1)')
         self.root_dir = Path(root_dir)
         self.transform = transform
         self.weak_class_transform = weak_class_transform
@@ -61,6 +65,9 @@ class TrashDataset(Dataset):
         self._split_root = self.root_dir / split
         self.using_pre_split = self._split_root.exists() and self._split_root.is_dir()
 
+        has_split_dirs = any((self.root_dir / name).is_dir() for name in ('train', 'val', 'test'))
+        if not self.using_pre_split and (split == 'test' or has_split_dirs):
+            raise ValueError(f'Explicit {split}/ directory required; refusing to evaluate on training data')
         self._initialize_classes()
         if weak_class_names:
             self.weak_class_indices = {
@@ -83,6 +90,10 @@ class TrashDataset(Dataset):
         """初始化类别列表"""
         if self.class_names is not None:
             self.class_names = list(self.class_names)
+            search_root = self._split_root if self.using_pre_split else self.root_dir
+            extra = {p.name for p in search_root.iterdir() if p.is_dir() and not p.name.startswith('.')} - set(self.class_names)
+            if extra:
+                raise ValueError(f'Unexpected class directories: {sorted(extra)}')
         else:
             search_root = self._split_root if self.using_pre_split else self.root_dir
             discovered = sorted([
@@ -104,12 +115,11 @@ class TrashDataset(Dataset):
         for class_name in self.class_names:
             class_dir = base_dir / class_name
             if not class_dir.exists():
-                print(f"Warning: {class_dir} does not exist, skipping...")
-                continue
+                raise ValueError(f'Missing class directory: {class_dir}')
 
-            # 支持多种图像格式
-            for ext in ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']:
-                for img_path in class_dir.glob(ext):
+            # Case-normalized, deterministic enumeration avoids Windows JPG/jpg duplication.
+            for img_path in sorted(class_dir.iterdir()):
+                if img_path.is_file() and img_path.suffix.lower() in {'.jpg', '.jpeg', '.png', '.webp'}:
                     self.samples.append(str(img_path))
                     self.targets.append(self.class_to_idx[class_name])
 
@@ -118,9 +128,7 @@ class TrashDataset(Dataset):
 
     def _split_data(self, val_split: float, seed: int):
         """划分训练/验证/测试集"""
-        np.random.seed(seed)
-        indices = np.arange(len(self.samples))
-        np.random.shuffle(indices)
+        indices = np.random.default_rng(seed).permutation(len(self.samples))
 
         # 划分训练集和验证集
         val_size = int(len(indices) * val_split)
@@ -131,8 +139,8 @@ class TrashDataset(Dataset):
             selected_indices = train_indices
         elif self.split == 'val':
             selected_indices = val_indices
-        else:  # test - 使用全部数据
-            selected_indices = indices
+        else:
+            raise ValueError('Test data requires an explicit test/ directory')
 
         # 更新样本列表
         self.samples = [self.samples[i] for i in selected_indices]
@@ -152,9 +160,10 @@ class TrashDataset(Dataset):
 
         # 加载图像
         try:
-            image = Image.open(img_path).convert('RGB')
-        except Exception as exc:
-            raise RuntimeError(f"Failed to load dataset image: {img_path}") from exc
+            with Image.open(img_path) as source:
+                image = source.convert('RGB')
+        except Exception as e:
+            raise RuntimeError(f"Unreadable training image: {img_path}") from e
 
         selected_transform = self.transform
         if (

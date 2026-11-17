@@ -144,7 +144,7 @@ def main() -> None:
     parser.add_argument("--data-root", default="data/proc/ecosort_v6_15class")
     parser.add_argument("--split", choices=["train", "val", "test"], required=True)
     parser.add_argument("--output-dir", default="reports/ecosort_experiment_results/raw")
-    parser.add_argument("--device", default="cuda:3")
+    parser.add_argument("--device", default="cpu")
     parser.add_argument("--warmup", type=int, default=20)
     parser.add_argument("--torch-threads", type=int, default=1)
     parser.add_argument("--disable-autocast", action="store_true")

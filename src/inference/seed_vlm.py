@@ -8,7 +8,7 @@ Real calls are disabled unless all of the following are configured:
 from __future__ import annotations
 
 import base64
-import fcntl
+from src.inference import file_lock as fcntl
 import hashlib
 import io
 import json

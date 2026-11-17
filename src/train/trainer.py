@@ -8,7 +8,7 @@ import json
 import time
 import math
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, Tuple, List
 import copy
 
 import torch
@@ -87,15 +87,20 @@ class Trainer:
         self.start_epoch = 0
         self.best_val_acc = 0.0
         self.best_val_f1 = 0.0
+        self.target_class_names = list(dict.fromkeys(config.get('target_class_names', [])))
         self.monitor_metric = str(config.get('monitor_metric', 'val_f1'))
         self.monitor_mode = str(config.get('monitor_mode', 'max'))
-        if self.monitor_metric not in {'val_f1', 'val_acc', 'val_loss'}:
+        if self.monitor_metric not in {'val_f1', 'val_acc', 'val_loss', 'val_target_f1'}:
             raise ValueError(
                 f"Unsupported monitor_metric: {self.monitor_metric}. "
-                "Choose from ['val_f1', 'val_acc', 'val_loss']"
+                "Choose from ['val_f1', 'val_acc', 'val_loss', 'val_target_f1']"
             )
         if self.monitor_mode not in {'max', 'min'}:
             raise ValueError("monitor_mode must be 'max' or 'min'")
+        if self.monitor_metric == 'val_target_f1' and not self.target_class_names:
+            raise ValueError(
+                "monitor_metric='val_target_f1' requires training.target_class_names"
+            )
         self.best_metric = -math.inf if self.monitor_mode == 'max' else math.inf
         self.patience_counter = 0
         self.history: List[Dict[str, float]] = []
@@ -118,6 +123,8 @@ class Trainer:
         print(f"Trainer initialized on {self.device}")
         print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
         print(f"Monitoring best checkpoint by {self.monitor_metric} ({self.monitor_mode})")
+        if self.target_class_names:
+            print(f"Target classes: {self.target_class_names}")
 
     def _is_better(self, current_value: float) -> bool:
         if self.monitor_mode == 'max':
@@ -169,41 +176,119 @@ class Trainer:
         else:
             return None
 
+    @staticmethod
+    def _resolve_class_index(class_key: Any, class_to_idx: Dict[str, int]) -> Optional[int]:
+        if isinstance(class_key, int):
+            return class_key if 0 <= class_key < len(class_to_idx) else None
+
+        class_key_str = str(class_key)
+        if class_key_str in class_to_idx:
+            return class_to_idx[class_key_str]
+
+        try:
+            parsed_index = int(class_key_str)
+            if 0 <= parsed_index < len(class_to_idx):
+                return parsed_index
+        except ValueError:
+            pass
+
+        return None
+
+    def _build_class_weights(self) -> Optional[torch.Tensor]:
+        data_config = self.config.get('data', {})
+        use_class_weights = data_config.get('use_class_weights', False)
+        class_weight_overrides = data_config.get('class_weight_overrides', {})
+        class_weight_multipliers = data_config.get('class_weight_multipliers', {})
+
+        has_custom_weights = bool(class_weight_overrides) or bool(class_weight_multipliers)
+        if not use_class_weights and not has_custom_weights:
+            return None
+
+        class_names = list(data_config.get('class_names', []))
+        class_counts = list(data_config.get('class_counts', []))
+
+        if class_names:
+            num_classes = len(class_names)
+        elif class_counts:
+            num_classes = len(class_counts)
+            class_names = [f'class_{i}' for i in range(num_classes)]
+        else:
+            return None
+
+        has_valid_counts = (
+            use_class_weights
+            and len(class_counts) == num_classes
+            and all(float(count) > 0 for count in class_counts)
+        )
+
+        if has_valid_counts:
+            total = float(sum(class_counts))
+            weights = torch.tensor([
+                total / (num_classes * float(count))
+                for count in class_counts
+            ], dtype=torch.float32)
+        else:
+            weights = torch.ones(num_classes, dtype=torch.float32)
+            if use_class_weights:
+                print("\n警告: use_class_weights=true 但 class_counts 不完整，回退为均匀权重。")
+
+        class_to_idx = {name: idx for idx, name in enumerate(class_names)}
+
+        for class_key, weight_value in class_weight_overrides.items():
+            idx = self._resolve_class_index(class_key, class_to_idx)
+            if idx is None:
+                print(f"警告: class_weight_overrides 中未找到类别 {class_key}，已跳过")
+                continue
+
+            parsed_weight = float(weight_value)
+            if parsed_weight <= 0:
+                print(f"警告: class_weight_overrides[{class_key}]={weight_value} 非法，已跳过")
+                continue
+
+            weights[idx] = parsed_weight
+
+        for class_key, multiplier in class_weight_multipliers.items():
+            idx = self._resolve_class_index(class_key, class_to_idx)
+            if idx is None:
+                print(f"警告: class_weight_multipliers 中未找到类别 {class_key}，已跳过")
+                continue
+
+            parsed_multiplier = float(multiplier)
+            if parsed_multiplier <= 0:
+                print(f"警告: class_weight_multipliers[{class_key}]={multiplier} 非法，已跳过")
+                continue
+
+            weights[idx] = weights[idx] * parsed_multiplier
+
+        if data_config.get('normalize_class_weights', True):
+            weights = weights / weights.mean().clamp(min=1e-12)
+
+        print(f"\n使用类别加权损失:")
+        for idx, name in enumerate(class_names):
+            count_text = (
+                str(class_counts[idx])
+                if idx < len(class_counts)
+                else 'n/a'
+            )
+            print(f"  {name:20s}: count={count_text:>4s}, weight={weights[idx].item():.3f}")
+
+        return weights.to(self.device)
+
     def _create_criterion(self) -> nn.Module:
         """创建损失函数（支持类别加权）"""
         loss_type = self.config.get('loss', {}).get('type', 'cross_entropy')
         data_config = self.config.get('data', {})
         use_weighted_sampler = data_config.get('use_weighted_sampler', False)
+        allow_loss_weights_with_sampler = data_config.get('allow_loss_weights_with_sampler', False)
 
-        class_weights = None
-        if data_config.get('use_class_weights', False):
-            class_counts = data_config.get('class_counts', [])
-            if class_counts:
-                total = sum(class_counts)
-                num_classes = len(class_counts)
-                class_weights = torch.tensor([
-                    total / (num_classes * count) for count in class_counts
-                ], dtype=torch.float32)
-                class_weights = class_weights / class_weights.sum() * num_classes
+        class_weights = self._build_class_weights()
 
-                print(f"\n使用类别加权损失:")
-                class_names = data_config.get(
-                    'class_names',
-                    [f'class_{i}' for i in range(len(class_counts))]
-                )
-                for i, (name, count, weight) in enumerate(zip(
-                    class_names,
-                    class_counts,
-                    class_weights
-                )):
-                    print(f"  {name:12s}: count={count:4d}, weight={weight:.3f}")
-
-                class_weights = class_weights.to(self.device)
-
-        if use_weighted_sampler and class_weights is not None:
+        if use_weighted_sampler and class_weights is not None and not allow_loss_weights_with_sampler:
             print("\n检测到 weighted sampler + class weights 同时开启，"
                   "为避免过度重加权，loss 中将禁用 class weights。")
             class_weights = None
+        elif use_weighted_sampler and class_weights is not None and allow_loss_weights_with_sampler:
+            print("\n已启用 weighted sampler + class weights 叠加（allow_loss_weights_with_sampler=true）")
 
         if loss_type == 'cross_entropy':
             label_smoothing = self.config.get('loss', {}).get('label_smoothing', 0.0)
@@ -245,9 +330,22 @@ class Trainer:
         correct = 0
         total = 0
 
-        pbar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch}")
+        max_train_batches = self.config.get('max_train_batches_per_epoch')
+        if max_train_batches is not None:
+            max_train_batches = int(max_train_batches)
+            if max_train_batches <= 0:
+                raise ValueError("max_train_batches_per_epoch must be > 0")
+
+        pbar = tqdm(
+            self.train_loader,
+            desc=f"Epoch {self.current_epoch}",
+            total=max_train_batches if max_train_batches is not None else None
+        )
 
         for batch_idx, (images, labels) in enumerate(pbar):
+            if max_train_batches is not None and batch_idx >= max_train_batches:
+                break
+
             images = images.to(self.device)
             labels = labels.to(self.device)
 
@@ -284,6 +382,9 @@ class Trainer:
             })
 
         # 计算 epoch 指标
+        if total == 0:
+            raise RuntimeError("No training samples were processed in train_epoch")
+
         avg_loss = total_loss / total
         accuracy = correct / total
 
@@ -310,7 +411,22 @@ class Trainer:
         all_preds = []
         all_labels = []
 
-        for images, labels in tqdm(self.val_loader, desc="Validating"):
+        max_val_batches = self.config.get('max_val_batches_per_epoch')
+        if max_val_batches is not None:
+            max_val_batches = int(max_val_batches)
+            if max_val_batches <= 0:
+                raise ValueError("max_val_batches_per_epoch must be > 0")
+
+        val_pbar = tqdm(
+            self.val_loader,
+            desc="Validating",
+            total=max_val_batches if max_val_batches is not None else None
+        )
+
+        for batch_idx, (images, labels) in enumerate(val_pbar):
+            if max_val_batches is not None and batch_idx >= max_val_batches:
+                break
+
             images = images.to(self.device)
             labels = labels.to(self.device)
 
@@ -334,18 +450,45 @@ class Trainer:
             all_labels.extend(labels.cpu().numpy())
 
         # 计算指标
+        if total == 0:
+            raise RuntimeError("No validation samples were processed in validate")
+
         avg_loss = total_loss / total
         accuracy = correct / total
 
         # 计算 F1-score
         from sklearn.metrics import f1_score
-        f1 = f1_score(all_labels, all_preds, average='macro')
+        f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
 
         metrics = {
             'val_loss': avg_loss,
             'val_acc': accuracy,
             'val_f1': f1
         }
+
+        class_names = list(self.config.get('data', {}).get('class_names', []))
+        if class_names:
+            per_class_f1 = f1_score(
+                all_labels,
+                all_preds,
+                labels=list(range(len(class_names))),
+                average=None,
+                zero_division=0
+            )
+
+            valid_target_names = [
+                class_name
+                for class_name in self.target_class_names
+                if class_name in class_names
+            ]
+            if valid_target_names:
+                class_to_idx = {name: idx for idx, name in enumerate(class_names)}
+                target_indices = [class_to_idx[name] for name in valid_target_names]
+                target_f1 = float(np.mean(per_class_f1[target_indices]))
+                metrics['val_target_f1'] = target_f1
+
+                for class_name, class_idx in zip(valid_target_names, target_indices):
+                    metrics[f'val_f1_{class_name}'] = float(per_class_f1[class_idx])
 
         return metrics
 
@@ -378,6 +521,8 @@ class Trainer:
             print(f"Val Loss: {val_metrics['val_loss']:.4f}, "
                   f"Val Acc: {val_metrics['val_acc']:.4f}, "
                   f"Val F1: {val_metrics['val_f1']:.4f}")
+            if 'val_target_f1' in val_metrics:
+                print(f"Val Target F1: {val_metrics['val_target_f1']:.4f}")
 
             # WandB 日志
             if self.wandb is not None:
@@ -432,7 +577,7 @@ class Trainer:
 
     def resume_from_checkpoint(self, checkpoint_path: str):
         """从完整状态检查点恢复训练"""
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
         self.model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -446,14 +591,27 @@ class Trainer:
         self.start_epoch = self.current_epoch + 1
         self.best_val_acc = checkpoint.get('best_val_acc', 0.0)
         self.best_val_f1 = checkpoint.get('best_val_f1', 0.0)
+
+        resume_use_checkpoint_monitor = self.config.get('resume_use_checkpoint_monitor', False)
         ckpt_monitor_metric = checkpoint.get('monitor_metric')
         ckpt_monitor_mode = checkpoint.get('monitor_mode')
-        if ckpt_monitor_metric is not None:
+        if resume_use_checkpoint_monitor and ckpt_monitor_metric is not None:
             self.monitor_metric = ckpt_monitor_metric
-        if ckpt_monitor_mode is not None:
+        if resume_use_checkpoint_monitor and ckpt_monitor_mode is not None:
             self.monitor_mode = ckpt_monitor_mode
-        default_best = self.best_val_f1 if self.monitor_metric == 'val_f1' else self.best_val_acc
-        self.best_metric = checkpoint.get('best_metric', default_best)
+
+        if self.monitor_metric == 'val_f1':
+            default_best = self.best_val_f1
+        elif self.monitor_metric == 'val_acc':
+            default_best = self.best_val_acc
+        else:
+            default_best = -math.inf if self.monitor_mode == 'max' else math.inf
+
+        if checkpoint.get('monitor_metric') == self.monitor_metric and 'best_metric' in checkpoint:
+            self.best_metric = checkpoint['best_metric']
+        else:
+            self.best_metric = default_best
+
         self.history = checkpoint.get('history', [])
         self.patience_counter = 0
 
@@ -462,6 +620,10 @@ class Trainer:
         print(f"Best {self.monitor_metric} so far: {self.best_metric:.4f}")
         print(f"Best Val Acc so far: {self.best_val_acc:.4f}")
         print(f"Best Val F1 so far: {self.best_val_f1:.4f}")
+
+        # 在当前实验目录中落一份基线 best_model，便于续训实验完整归档
+        # 即使后续没有刷新 best，也能保留可追溯的最佳状态文件
+        self.save_checkpoint('best_model.pth')
 
     def save_checkpoint(self, filename: str):
         """保存完整状态检查点
@@ -523,7 +685,7 @@ def load_checkpoint(checkpoint_path: str, model: nn.Module) -> Dict:
     Returns:
         checkpoint: 检查点字典
     """
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
     # 加载模型权重
     model.load_state_dict(checkpoint['model_state_dict'])

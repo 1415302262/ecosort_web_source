@@ -81,3 +81,14 @@ reports/ecosort_experiment_results/vlm_*/vlm_attempt_ledger.jsonl
 reports/qa_render_*/
 runtime/
 *.download
+
+# Local development, uploads, SQLite, credentials and task scratch
+tmp/
+.state/
+*.sqlite3
+*.sqlite3-*
+*.secret
+admin.token
+.pytest_cache/
+.coverage
+htmlcov/

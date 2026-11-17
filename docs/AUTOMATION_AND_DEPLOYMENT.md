@@ -1,5 +1,7 @@
 # EcoSort 自动化与部署边界
 
+当前本科毕设运行与业务持久化说明以 [DEPLOYMENT.md](DEPLOYMENT.md) 为准。本文保留既有实验自动化边界。
+
 本文区分两种交付：不产生云模型费用的静态求职展示，以及需要真实模型权重的在线推理服务。二者互不冒充。
 
 ## 1. 自动化闭环
@@ -10,7 +12,7 @@
 conda run -n cptac bash scripts/release_check.sh
 ```
 
-门禁会完成 Python 编译检查、部署脚本语法检查、20 项级联/缓存/预算回归测试、公开产物指标与 SHA256 校验、隐私扫描和 `git diff --check`。CI 不读取 API Key，不访问 VLM，也不会消耗免费额度。
+门禁会完成 Python 编译检查、部署脚本语法检查、级联、缓存、预算及业务流程回归测试、公开产物指标与 SHA256 校验、隐私扫描和 `git diff --check`。CI 不读取 API Key，不访问 VLM，也不会消耗免费额度。
 
 合并到 `main` 后，GitHub Pages 工作流自动发布 `docs/portfolio/` 与实验报告 PDF。该展示完全静态，不需要 checkpoint、GPU 或云 API。
 

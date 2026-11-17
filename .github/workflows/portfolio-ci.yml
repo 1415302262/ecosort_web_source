@@ -20,3 +20,18 @@ jobs:
         run: pip install -r requirements-ci.txt
       - name: Run no-network release gate
         run: bash scripts/release_check.sh
+
+  ml-data-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install CPU data-loader dependencies
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install pytest Pillow numpy
+      - name: Check split isolation and corrupt-image failures
+        run: pytest -q tests/test_dataset_contract.py

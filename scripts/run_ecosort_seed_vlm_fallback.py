@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
-import fcntl
+from src.inference import file_lock as fcntl
 import io
 import json
 import math

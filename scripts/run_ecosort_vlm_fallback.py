@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import argparse
 import ast
-import fcntl
+from src.inference import file_lock as fcntl
 import hashlib
 import json
 import os

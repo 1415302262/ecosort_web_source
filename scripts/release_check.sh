@@ -7,6 +7,9 @@ set -euo pipefail
 python -m py_compile \
   backend/app.py \
   backend/wsgi.py \
+  backend/web.py \
+  backend/store.py \
+  src/inference/file_lock.py \
   src/inference/cascade.py \
   src/inference/seed_vlm.py \
   scripts/run_ecosort_vlm_fallback.py \
@@ -18,10 +21,7 @@ python -m py_compile \
 
 bash -n scripts/render_start.sh
 
-PYTHONPATH=. pytest -q \
-  tests/test_cascade_runtime.py \
-  tests/test_seed_vlm_unit.py \
-  tests/test_vlm_safety.py
+PYTHONPATH=. pytest -q tests
 
 python scripts/validate_public_release.py
 git diff --check

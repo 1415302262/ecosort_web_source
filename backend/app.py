@@ -11,8 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, List
 import yaml
 
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from backend.web import create_app
 from PIL import Image
 import io
 import torch
@@ -22,7 +21,6 @@ import numpy as np
 
 from src.models.resnet_classifier import create_resnet_model
 from src.models.efficientnet_classifier import create_efficientnet_model
-from src.train.trainer import load_checkpoint
 from src.data.letterbox import ResizeLongestSideWithPadding
 from src.inference.cascade import (
     AUDITED_CLASS_NAMES,
@@ -40,27 +38,6 @@ from src.inference.seed_vlm import (
     PROMPT_VERSION as SEED_PROMPT_VERSION,
 )
 
-
-app = Flask(__name__, static_folder='static')
-app.config['MAX_CONTENT_LENGTH'] = int(
-    os.getenv('ECOSORT_MAX_REQUEST_BYTES', str(12 * 1024 * 1024))
-)
-
-
-def _parse_cors_origins() -> List[str]:
-    raw = os.getenv('ECOSORT_CORS_ORIGINS', '*').strip()
-    if not raw or raw == '*':
-        return ['*']
-    return [origin.strip() for origin in raw.split(',') if origin.strip()]
-
-
-cors_origins = _parse_cors_origins()
-CORS(
-    app,
-    resources={r"/*": {"origins": cors_origins}},
-    methods=['GET', 'POST', 'OPTIONS'],
-    allow_headers=['Content-Type', 'Authorization'],
-)
 
 # 全局变量
 model = None
@@ -621,231 +598,56 @@ def load_model(model_path: str, model_type: str = None, num_classes: int = None)
     return f"Loaded {model_type} with {num_classes} classes"
 
 
-@app.route('/')
-def index():
-    """主页 - 返回静态HTML文件"""
-    return send_from_directory('static', 'index.html')
-
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """健康检查"""
-    return jsonify({
+def _health_status():
+    return {
         'status': 'healthy' if model is not None else 'degraded',
         'model_loaded': model is not None,
         'device': str(device) if device else None,
         'model_meta': model_meta,
-        'class_count': len(class_names),
-        'cors_origins': cors_origins,
-        'api_base_hint': request.host_url.rstrip('/'),
         'runtime': {
             'infer_image_size': inference_image_size,
-            'use_cuda_autocast': use_cuda_autocast,
-            'torch_threads': int(torch.get_num_threads()),
             'confidence_threshold': confidence_threshold,
-            'fallback_class': fallback_class,
-            'mapping_config': mapping_config_path.name,
             'routing_strategy': 'confidence_only',
             'provider': seed_vlm_client.status(),
-            'audited_parity': model_meta.get('runtime_parity', {
-                'audited_parity': False,
-                'reason': 'model_not_loaded',
-            }),
-        }
-    })
-
-
-@app.route('/metrics', methods=['GET'])
-def runtime_metrics():
-    """Operational counters only; never includes images, keys, or cache IDs."""
-    return jsonify({
-        'telemetry': runtime_telemetry.snapshot(),
-        'provider': seed_vlm_client.status(),
-        'runtime_parity': model_meta.get('runtime_parity', {
-            'audited_parity': False,
-            'reason': 'model_not_loaded',
-        }),
-    })
-
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    """单张图像分类
-
-    Request:
-        - image: base64 编码的图像字符串
-        - format: 'base64' (默认)
-
-    Returns:
-        - class_name: 类别名称
-        - class_id: 类别 ID (0-13)
-        - confidence: 置信度
-    """
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-
-    try:
-        # 获取请求数据
-        data = request.get_json(silent=True)
-
-        if not isinstance(data, dict) or 'image' not in data:
-            return jsonify({'error': 'No image provided'}), 400
-
-        image_data = data['image']
-        if data.get('format') != 'base64':
-            return jsonify({'error': 'Unsupported format'}), 400
-
-        image = _decode_base64_image(image_data)
-        response = _cascade_infer_image(image)
-
-        return jsonify(response)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/batch_predict', methods=['POST'])
-def batch_predict():
-    """批量图像分类
-
-    Request:
-        - images: base64 编码的图像列表
-
-    Returns:
-        - predictions: 预测结果列表
-    """
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-
-    try:
-        data = request.get_json(silent=True)
-
-        if not isinstance(data, dict) or 'images' not in data:
-            return jsonify({'error': 'No images provided'}), 400
-
-        images = data['images']
-        if not isinstance(images, list):
-            return jsonify({'error': 'images must be a list'}), 400
-        if len(images) > max_batch_size:
-            return jsonify({
-                'error': f'batch exceeds ECOSORT_MAX_BATCH_SIZE={max_batch_size}'
-            }), 413
-        predictions = []
-
-        for img_data in images:
-            try:
-                # 解码图像
-                if ',' in img_data:
-                    img_data = img_data.split(',')[1]
-
-                image_bytes = base64.b64decode(img_data)
-                image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-
-                predictions.append(_cascade_infer_image(image))
-
-            except Exception as e:
-                predictions.append({'error': str(e)})
-
-        return jsonify({'predictions': predictions})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/detect_objects', methods=['POST'])
-def detect_objects():
-    """单张图片多目标候选裁剪并分别分类（低成本方案）"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-
-    try:
-        data = request.get_json()
-        if not data or 'image' not in data:
-            return jsonify({'error': 'No image provided'}), 400
-        if data.get('format') != 'base64':
-            return jsonify({'error': 'Unsupported format'}), 400
-
-        max_objects = int(data.get('max_objects', 5))
-        max_objects = max(1, min(max_objects, 8))
-
-        image = _decode_base64_image(data['image'])
-        main_result = _infer_image(image)
-
-        candidates = _extract_candidate_crops(image, max_objects=max_objects)
-        objects = []
-        for idx, cand in enumerate(candidates):
-            pred = _infer_image(cand['crop'])
-            objects.append({
-                'id': idx,
-                'bbox_px': cand['bbox_px'],
-                'bbox_norm': cand['bbox_norm'],
-                'label': pred.get('daily_label') or pred.get('raw_top1_class') or pred.get('class_name'),
-                'confidence': pred.get('confidence', 0.0),
-                'prediction': pred,
-            })
-
-        return jsonify({
-            'main': main_result,
-            'objects': objects,
-            'object_count': len(objects),
-            'mode': 'lightweight_multi_object'
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/model_info', methods=['GET'])
-def model_info():
-    """获取模型信息"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-
-    # 计算模型参数量
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    info = {
-        'model_type': model_meta.get('model_type', 'unknown'),
-        'backbone': model_meta.get('backbone', 'unknown'),
-        'num_classes': model_meta.get('num_classes', len(class_names)),
-        'class_names': model_meta.get('class_names', class_names),
-        'daily_labels': DAILY_LABEL_ORDER,
-        'missing_daily_labels': MISSING_DAILY_LABELS,
-        'coarse_labels': COARSE_LABELS,
-        'total_params': int(total_params),
-        'trainable_params': int(trainable_params),
-        'device': str(device)
+            'audited_parity': model_meta.get('runtime_parity', {'audited_parity': False}),
+        },
     }
 
-    return jsonify(info)
+
+def _model_information():
+    return {
+        **model_meta,
+        'total_params': sum(p.numel() for p in model.parameters()) if model else 0,
+        'device': str(device) if device else None,
+    }
 
 
-@app.route('/reload_model', methods=['POST'])
-def reload_model():
-    """重新加载模型
+def _runtime_metrics():
+    return {'telemetry': runtime_telemetry.snapshot(), 'provider': seed_vlm_client.status(),
+            'runtime_parity': model_meta.get('runtime_parity', {'audited_parity': False})}
 
-    Request:
-        - model_path: 模型路径
-        - model_type: 模型类型 (resnet/efficientnet)
-    """
-    if not allow_model_reload:
-        return jsonify({'error': 'Model reload is disabled'}), 403
 
-    try:
-        data = request.get_json()
-        model_path = data.get('model_path')
-        model_type = data.get('model_type', 'resnet')
+def _detect_candidates(image, max_objects):
+    if model is None:
+        from backend.web import InputError
+        raise InputError('识别模型尚未就绪', 503)
+    candidates = _extract_candidate_crops(image, max_objects=max_objects)
+    objects = []
+    for idx, candidate in enumerate(candidates):
+        prediction = _infer_image(candidate['crop'])
+        objects.append({'id': idx, 'bbox_px': candidate['bbox_px'],
+                        'bbox_norm': candidate['bbox_norm'], 'prediction': prediction,
+                        'label': prediction['class_name'], 'confidence': prediction['confidence']})
+    return {'main': _infer_image(image), 'objects': objects, 'object_count': len(objects),
+            'mode': 'heuristic_candidates',
+            'limitation': '轮廓候选区域分类，未经目标检测标注集验证，不能视为检测模型。'}
 
-        if not model_path:
-            return jsonify({'error': 'model_path is required'}), 400
 
-        load_model(model_path, model_type)
-
-        return jsonify({'status': 'success', 'message': 'Model reloaded'})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+app = create_app(
+    predictor=_cascade_infer_image, health_provider=_health_status,
+    info_provider=_model_information, metrics_provider=_runtime_metrics,
+    object_detector=_detect_candidates,
+)
 
 
 def main():
@@ -861,7 +663,7 @@ def main():
                         help='Model type (auto-detect if not specified)')
     parser.add_argument('--num-classes', type=int, default=14,
                         help='Number of classes')
-    parser.add_argument('--host', type=str, default='0.0.0.0',
+    parser.add_argument('--host', type=str, default='127.0.0.1',
                         help='Host address')
     parser.add_argument('--port', type=int, default=5000,
                         help='Port number')
