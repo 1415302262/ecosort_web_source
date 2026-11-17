@@ -250,6 +250,13 @@ def create_app(
             Path(__file__).resolve().parents[1] / "docs" / "portfolio", filename
         )
 
+    @app.get("/results/ecosort_experiment_report.pdf")
+    def experiment_report_pdf():
+        return send_file(
+            Path(__file__).resolve().parents[1] / "reports" / "ecosort_experiment_report.pdf",
+            mimetype="application/pdf",
+        )
+
     @app.get("/api/session")
     def session_info():
         owner()

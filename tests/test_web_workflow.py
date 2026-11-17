@@ -243,6 +243,17 @@ def test_ecosort_session_does_not_overwrite_other_local_app_cookie(app):
     assert client.get_cookie("ecosort_session") is not None
 
 
+def test_portfolio_report_link_serves_the_existing_public_pdf(app):
+    client = app.test_client()
+    page = client.get("/results/")
+    assert page.status_code == 200
+    assert "ecosort_experiment_report.pdf" in page.text
+    report = client.get("/results/ecosort_experiment_report.pdf")
+    assert report.status_code == 200
+    assert report.mimetype == "application/pdf"
+    assert report.data.startswith(b"%PDF-")
+
+
 def test_two_reviewers_cannot_overwrite_each_other(app):
     client = app.test_client()
     record_id = predict(client)
