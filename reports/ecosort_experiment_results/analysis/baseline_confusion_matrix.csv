@@ -1,0 +1,15 @@
+,brick_ceramic,e_waste,foam,glass,haz_battery,haz_device,haz_medicine,hygiene_contaminated,metal,organic_food,paper_family,plastic,small_hard_items,textile
+brick_ceramic,35,0,1,0,0,0,0,0,0,3,0,0,0,1
+e_waste,0,21,0,0,0,0,1,0,0,0,0,2,0,0
+foam,1,0,17,0,0,0,0,0,0,1,0,0,0,1
+glass,0,0,0,44,0,0,0,0,0,0,0,0,0,0
+haz_battery,0,1,0,0,12,0,0,0,0,0,0,1,0,0
+haz_device,0,1,0,0,0,29,0,0,0,0,0,2,1,0
+haz_medicine,0,0,0,0,0,0,35,0,0,0,0,3,1,0
+hygiene_contaminated,0,0,1,0,0,0,0,82,0,2,0,4,3,4
+metal,0,0,0,1,0,0,0,0,40,0,0,0,0,0
+organic_food,1,1,0,0,0,0,0,1,0,152,0,6,1,5
+paper_family,0,0,0,0,0,0,0,0,0,0,41,0,2,0
+plastic,0,0,1,5,1,0,1,2,2,6,0,167,1,0
+small_hard_items,0,0,0,0,0,1,0,0,0,0,0,1,75,0
+textile,0,0,0,0,0,0,0,0,0,2,1,1,2,81

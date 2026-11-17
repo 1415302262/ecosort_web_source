@@ -10,3 +10,11 @@ services:
         value: 3.11.9
       - key: ECOSORT_MODEL_PATH
         value: checkpoints/best_model.pth
+      - key: ECOSORT_EXPECTED_MODEL_SHA256
+        value: 9ba817cdf0712b597e1eb322d722e130707d60d6733cf46d8d87149456946234
+      - key: ECOSORT_INFER_IMAGE_SIZE
+        value: "224"
+      - key: ECOSORT_VLM_EXECUTE
+        value: "0"
+      - key: ECOSORT_VLM_MAX_CALLS
+        value: "0"

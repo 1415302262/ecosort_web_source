@@ -62,14 +62,15 @@ def evaluate_model(
 
     # 计算指标
     accuracy = accuracy_score(all_labels, all_preds)
-    f1 = f1_score(all_labels, all_preds, average='macro')
-    precision = precision_score(all_labels, all_preds, average='macro')
-    recall = recall_score(all_labels, all_preds, average='macro')
+    f1 = f1_score(all_labels, all_preds, average='macro', labels=list(range(len(class_names))), zero_division=0)
+    precision = precision_score(all_labels, all_preds, average='macro', labels=list(range(len(class_names))), zero_division=0)
+    recall = recall_score(all_labels, all_preds, average='macro', labels=list(range(len(class_names))), zero_division=0)
 
     # 每个类别的指标
     report = classification_report(
         all_labels, all_preds,
         target_names=class_names,
+        labels=list(range(len(class_names))), zero_division=0,
         output_dict=True
     )
 
@@ -94,7 +95,7 @@ def plot_confusion_matrix(
     save_path: str = None
 ):
     """绘制混淆矩阵"""
-    cm = confusion_matrix(labels, preds)
+    cm = confusion_matrix(labels, preds, labels=list(range(len(class_names))))
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(
@@ -171,11 +172,11 @@ def main():
                         help='Data root directory')
     parser.add_argument('--batch-size', type=int, default=32,
                         help='Batch size')
-    parser.add_argument('--img-size', type=int, default=256,
+    parser.add_argument('--img-size', type=int, default=None,
                         help='Image size')
     parser.add_argument('--output-dir', type=str, default='checkpoints/evaluation',
                         help='Output directory for results')
-    parser.add_argument('--model-type', type=str, default='resnet',
+    parser.add_argument('--model-type', type=str, default='efficientnet',
                         choices=['resnet', 'efficientnet'],
                         help='Model type')
 
@@ -193,12 +194,19 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
+    checkpoint_config = torch.load(args.checkpoint, map_location='cpu', weights_only=False).get('config', {})
+    checkpoint_classes = checkpoint_config.get('data', {}).get('class_names')
+    if not checkpoint_classes:
+        raise ValueError('Checkpoint must declare class_names to verify evaluation label order')
+    image_size = args.img_size or checkpoint_config.get('data', {}).get('img_size', 224)
+
     # 加载数据
     print("\nLoading data...")
     test_dataset = TrashDataset(
         root_dir=args.data_root,
-        transform=get_data_transforms('val', args.img_size),
-        split='test'
+        transform=get_data_transforms('val', image_size),
+        split='test',
+        class_names=checkpoint_classes
     )
 
     test_loader = DataLoader(
@@ -251,7 +259,7 @@ def main():
     print("Per-Class Metrics:")
     print(classification_report(
         metrics['labels'], metrics['predictions'],
-        target_names=class_names
+        target_names=class_names, labels=list(range(len(class_names))), zero_division=0
     ))
 
     # 保存报告

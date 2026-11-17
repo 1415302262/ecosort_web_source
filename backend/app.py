@@ -4,18 +4,14 @@ Flask REST API 服务器
 """
 
 import base64
+import hashlib
 import os
+import time
 from pathlib import Path
 from typing import Dict, Any, Tuple, List
 import yaml
 
-try:
-    import google.generativeai as genai
-except Exception:
-    genai = None
-
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from backend.web import create_app
 from PIL import Image
 import io
 import torch
@@ -25,42 +21,38 @@ import numpy as np
 
 from src.models.resnet_classifier import create_resnet_model
 from src.models.efficientnet_classifier import create_efficientnet_model
-from src.train.trainer import load_checkpoint
 from src.data.letterbox import ResizeLongestSideWithPadding
-
-
-app = Flask(__name__, static_folder='static')
-
-
-def _parse_cors_origins() -> List[str]:
-    raw = os.getenv('ECOSORT_CORS_ORIGINS', '*').strip()
-    if not raw or raw == '*':
-        return ['*']
-    return [origin.strip() for origin in raw.split(',') if origin.strip()]
-
-
-cors_origins = _parse_cors_origins()
-CORS(
-    app,
-    resources={r"/*": {"origins": cors_origins}},
-    methods=['GET', 'POST', 'OPTIONS'],
-    allow_headers=['Content-Type', 'Authorization'],
+from src.inference.cascade import (
+    AUDITED_CLASS_NAMES,
+    AUDITED_CONFIDENCE_THRESHOLD,
+    AUDITED_IMAGE_SIZE,
+    CascadePolicy,
+    RuntimeTelemetry,
+    coarse_category,
+    map_vlm_label,
+    runtime_parity,
 )
+from src.inference.seed_vlm import SeedVLMClient
+from src.inference.seed_vlm import (
+    PROMPT_SHA256 as SEED_PROMPT_SHA256,
+    PROMPT_VERSION as SEED_PROMPT_VERSION,
+)
+
 
 # 全局变量
 model = None
 device = None
-class_names = ['recyclable', 'hazardous', 'kitchen', 'other']
+class_names = list(AUDITED_CLASS_NAMES)
 transform = None
-confidence_threshold = 0.7
+confidence_threshold = AUDITED_CONFIDENCE_THRESHOLD
 fallback_class = 'trash'
 margin_threshold = 0.15
 entropy_threshold = 0.78
 hazardous_confidence_threshold = 0.82
 hazardous_margin_threshold = 0.22
-hazardous_classes = {'battery', 'bulb', 'cigarette', 'e_waste', 'medicine'}
+hazardous_classes = {'e_waste', 'haz_battery', 'haz_device', 'haz_medicine'}
 model_meta = {}
-inference_image_size = int(os.getenv('ECOSORT_INFER_IMAGE_SIZE', '300'))
+inference_image_size = int(os.getenv('ECOSORT_INFER_IMAGE_SIZE', str(AUDITED_IMAGE_SIZE)))
 use_cuda_autocast = os.getenv('ECOSORT_USE_CUDA_AUTOCAST', '1').strip() != '0'
 mapping_config_path = Path(
     os.getenv(
@@ -68,67 +60,27 @@ mapping_config_path = Path(
         str(Path(__file__).resolve().parent.parent / 'ecosort_mapping.yaml')
     )
 )
-GEMINI_API_KEY = os.getenv('ECOSORT_GEMINI_API_KEY', '').strip()
-GEMINI_MODEL_NAME = os.getenv('ECOSORT_GEMINI_MODEL', 'gemini-1.5-flash').strip()
-
-if GEMINI_API_KEY and genai is not None:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-
-def _normalize_vlm_category(text: str) -> Tuple[str, str]:
-    """将VLM输出标准化为系统可用类别。"""
-    normalized = _normalize_label(text)
-    mapping = {
-        'recyclable': ('recyclable', 'Recyclable'),
-        'food_waste': ('kitchen', 'Food_Waste'),
-        'hazardous': ('hazardous', 'Hazardous'),
-        'residual_waste': ('other', 'Residual_Waste'),
-    }
-
-    for key, val in mapping.items():
-        if key in normalized:
-            return val
-
-    return 'other', 'Residual_Waste'
+runtime_raw_to_target: Dict[str, str] = {}
+cascade_policy = CascadePolicy(confidence_threshold)
+runtime_telemetry = RuntimeTelemetry()
+seed_vlm_client = SeedVLMClient.from_env()
 
 
-def _call_vlm_fallback(image: Image.Image) -> Dict[str, str]:
-    """调用云端多模态模型进行兜底判定。"""
-    if not GEMINI_API_KEY or genai is None:
-        return {
-            'coarse_category': 'other',
-            'vlm_class_name': 'Residual_Waste',
-            'raw_output': 'VLM not configured',
-        }
-
-    try:
-        vlm_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-        prompt = (
-            "You are a strict garbage classification expert. "
-            "Classify this image into EXACTLY ONE label from: "
-            "Recyclable, Food_Waste, Hazardous, Residual_Waste. "
-            "Output only the label."
-        )
-        response = vlm_model.generate_content([prompt, image])
-        text = (response.text or '').strip()
-
-        coarse_category, vlm_class_name = _normalize_vlm_category(text)
-        return {
-            'coarse_category': coarse_category,
-            'vlm_class_name': vlm_class_name,
-            'raw_output': text,
-        }
-    except Exception as exc:
-        return {
-            'coarse_category': 'other',
-            'vlm_class_name': 'Residual_Waste',
-            'raw_output': f'VLM error: {exc}',
-        }
+def _call_vlm_fallback(image: Image.Image) -> Dict[str, Any]:
+    """Call the bounded Seed adapter and map its 42-class output to V6."""
+    result = seed_vlm_client.review(image)
+    mapped = map_vlm_label(result.get('raw_label'), runtime_raw_to_target)
+    result['mapped_class_name'] = mapped
+    result['mapping_success'] = mapped is not None
+    if mapped is None and result.get('success'):
+        result['failure_reason'] = 'unmapped_label'
+    return result
 
 
 def load_runtime_mapping_config() -> None:
     """从 YAML 读取后端推理阈值与兜底类别配置。"""
     global confidence_threshold, fallback_class, class_names
+    global cascade_policy, runtime_raw_to_target
 
     if not mapping_config_path.exists():
         print(f"[runtime-config] mapping file not found: {mapping_config_path}")
@@ -148,10 +100,17 @@ def load_runtime_mapping_config() -> None:
         if isinstance(train_classes, list) and len(train_classes) > 0:
             class_names = [str(name) for name in train_classes]
 
+        raw_mapping = ecosort_cfg.get('raw_to_target')
+        if isinstance(raw_mapping, dict):
+            runtime_raw_to_target = {
+                str(source): str(target) for source, target in raw_mapping.items()
+            }
+        cascade_policy = CascadePolicy(confidence_threshold)
+
         print(
             f"[runtime-config] loaded from {mapping_config_path} | "
             f"threshold={confidence_threshold:.2f}, fallback={fallback_class}, "
-            f"train_classes={len(class_names)}"
+            f"train_classes={len(class_names)}, raw_mapping={len(runtime_raw_to_target)}"
         )
     except Exception as exc:
         print(f"[runtime-config] failed to load {mapping_config_path}: {exc}")
@@ -173,15 +132,8 @@ def _configure_runtime_limits() -> None:
 
 COARSE_LABELS = ['recyclable', 'hazardous', 'kitchen', 'other']
 
-DAILY_LABEL_ORDER = [
-    'Aluminum can', 'Cardboard', 'Container for household chemicals', 'Glass bottle',
-    'Food waste', 'Paper', 'Paper bag', 'Hard plastic container', 'Soft plastic film/bag',
-    'Magazine / Flyer', 'Textile', 'Tin',
-    'battery', 'bulb', 'cigarette', 'e_waste', 'mask', 'medicine',
-    'tissue', 'Residual waste'
-]
-
-MISSING_DAILY_LABELS = ['Ceramics', 'Styrofoam / EPS', 'Large bones / Shells']
+DAILY_LABEL_ORDER = list(AUDITED_CLASS_NAMES)
+MISSING_DAILY_LABELS: List[str] = []
 
 
 def _normalized_entropy(probabilities: torch.Tensor) -> float:
@@ -199,22 +151,7 @@ def _normalize_label(name: str) -> str:
 
 
 def _coarse_category_for_label(name: str) -> str:
-    normalized = _normalize_label(name)
-
-    if normalized in {'battery', 'bulb', 'cigarette', 'e_waste', 'medicine'}:
-        return 'hazardous'
-
-    if normalized in {'organic', 'liquid'}:
-        return 'kitchen'
-
-    if normalized in {
-        'aluminum_can', 'cardboard', 'glass_bottle', 'paper', 'paper_bag',
-        'plastic_bag', 'plastic_bottle', 'plastic_cup', 'plastic_shaker',
-        'printing_industry', 'tin', 'zip_plastic_bag'
-    }:
-        return 'recyclable'
-
-    return 'other'
+    return coarse_category(name)
 
 
 def _daily_label_for_model_class(name: str) -> str:
@@ -268,7 +205,7 @@ def _apply_unknown_guardrails(
 
     top1_daily_label = _daily_label_for_model_class(top1_name)
 
-    low_confidence = top1_conf < confidence_threshold
+    low_confidence = cascade_policy.should_route(top1_conf)
     low_margin = margin < margin_threshold
     high_entropy = entropy > entropy_threshold
 
@@ -280,7 +217,9 @@ def _apply_unknown_guardrails(
     liquid_reminder = _normalize_label(top1_name) == 'liquid' and top1_conf >= 0.45
 
     uncertain = low_confidence
-    final_name = fallback_class if low_confidence else top1_name
+    # Rejection is a routing decision, not a replacement prediction. Keep the
+    # local class unless a mapped VLM response succeeds.
+    final_name = top1_name
 
     top_k = min(3, len(class_names_local))
     topk_values, topk_indices = torch.topk(probabilities, k=top_k)
@@ -309,6 +248,8 @@ def _apply_unknown_guardrails(
         'margin': margin,
         'entropy': entropy,
         'uncertain': uncertain,
+        'routing_strategy': 'confidence_only',
+        'routing_threshold': confidence_threshold,
         'review_reasons': {
             'low_confidence': low_confidence,
             'low_margin': low_margin,
@@ -327,6 +268,24 @@ def _decode_base64_image(image_data: str) -> Image.Image:
     return Image.open(io.BytesIO(image_bytes)).convert('RGB')
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _reject_lfs_pointer(path: Path) -> None:
+    with path.open('rb') as handle:
+        prefix = handle.read(128)
+    if prefix.startswith(b'version https://git-lfs.github.com/spec/v1'):
+        raise RuntimeError(
+            f'{path} is a Git LFS pointer, not model weights. Pull LFS objects '
+            'or configure ECOSORT_MODEL_URL before starting inference.'
+        )
+
+
 def _infer_image(image: Image.Image) -> Dict[str, Any]:
     input_tensor = transform(image).unsqueeze(0).to(device)
     with torch.inference_mode():
@@ -343,6 +302,66 @@ def _infer_image(image: Image.Image) -> Dict[str, Any]:
         class_names[i]: float(probabilities[i].item())
         for i in range(len(class_names))
     }
+    return response
+
+
+def _cascade_infer_image(image: Image.Image) -> Dict[str, Any]:
+    """Run local inference and the bounded fallback using one audited policy."""
+    started = time.perf_counter()
+    local_started = time.perf_counter()
+    response = _infer_image(image)
+    local_latency_ms = (time.perf_counter() - local_started) * 1000.0
+    local_class = str(response['raw_top1_class'])
+    routed = bool(response.get('uncertain'))
+    vlm_result: Dict[str, Any] = {}
+    vlm_success = False
+
+    if routed:
+        vlm_result = _call_vlm_fallback(image)
+        mapped = vlm_result.get('mapped_class_name')
+        vlm_success = bool(vlm_result.get('success') and mapped)
+        if vlm_success:
+            response['class_name'] = mapped
+            response['daily_label'] = mapped
+            response['coarse_category'] = coarse_category(mapped)
+
+    total_latency_ms = (time.perf_counter() - started) * 1000.0
+    attempted = bool(vlm_result.get('attempted'))
+    usage = vlm_result.get('usage') if attempted else None
+    runtime_telemetry.record(
+        routed=routed,
+        vlm_attempted=attempted,
+        vlm_success=vlm_success,
+        fallback_reason=vlm_result.get('failure_reason'),
+        latency_ms=total_latency_ms,
+        vlm_latency_ms=vlm_result.get('latency_ms') if attempted else None,
+        usage=usage,
+    )
+    response.update({
+        'local_prediction': local_class,
+        'final_prediction': response['class_name'],
+        'local_latency_ms': local_latency_ms,
+        'cascade_latency_ms': total_latency_ms,
+        'vlm_fallback_used': vlm_success,
+        'routing': {
+            'strategy': 'confidence_only',
+            'threshold': confidence_threshold,
+            'routed': routed,
+            'provider_attempted': attempted,
+            'provider_success': vlm_success,
+            'provider_cached': bool(vlm_result.get('cached')),
+            'failure_reason': vlm_result.get('failure_reason'),
+            'raw_vlm_label': vlm_result.get('raw_label'),
+            'mapped_vlm_label': vlm_result.get('mapped_class_name'),
+            'provider_model': vlm_result.get('provider_model'),
+            'provider_latency_ms': vlm_result.get('latency_ms'),
+            'usage': usage or {},
+        },
+    })
+    if routed and not vlm_success:
+        response['advice'] = '本地模型不确定；VLM不可用或失败，已安全保留本地预测。'
+    elif vlm_success:
+        response['advice'] = '本地模型不确定，已采用VLM复核后的映射结果。'
     return response
 
 
@@ -470,8 +489,14 @@ def load_model(model_path: str, model_type: str = None, num_classes: int = None)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    checkpoint_path = Path(model_path)
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f'Model checkpoint not found: {checkpoint_path}')
+    _reject_lfs_pointer(checkpoint_path)
+    checkpoint_sha256 = _sha256_file(checkpoint_path)
+
     # 加载 checkpoint 获取配置
-    checkpoint_raw = torch.load(model_path, map_location='cpu', weights_only=False)
+    checkpoint_raw = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
     # 自动检测模型类型
     if model_type is None:
@@ -541,8 +566,19 @@ def load_model(model_path: str, model_type: str = None, num_classes: int = None)
         'model_type': model_type,
         'backbone': backbone,
         'num_classes': num_classes,
-        'class_names': class_names
+        'class_names': class_names,
+        'checkpoint_sha256': checkpoint_sha256,
     }
+    model_meta['runtime_parity'] = runtime_parity(
+        checkpoint_sha256=checkpoint_sha256,
+        class_names=class_names,
+        image_size=inference_image_size,
+        confidence_threshold=confidence_threshold,
+        provider_model=seed_vlm_client.config.model,
+        prompt_version=SEED_PROMPT_VERSION,
+        prompt_sha256=SEED_PROMPT_SHA256,
+        raw_to_target=runtime_raw_to_target,
+    )
 
     # 创建预处理变换（默认 256，可通过环境变量 ECOSORT_INFER_IMAGE_SIZE 覆盖）
     transform = transforms.Compose([
@@ -558,234 +594,56 @@ def load_model(model_path: str, model_type: str = None, num_classes: int = None)
     return f"Loaded {model_type} with {num_classes} classes"
 
 
-@app.route('/')
-def index():
-    """主页 - 返回静态HTML文件"""
-    return send_from_directory('static', 'index.html')
-
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """健康检查"""
-    return jsonify({
-        'status': 'healthy',
+def _health_status():
+    return {
+        'status': 'healthy' if model is not None else 'degraded',
         'model_loaded': model is not None,
         'device': str(device) if device else None,
         'model_meta': model_meta,
-        'class_count': len(class_names),
-        'cors_origins': cors_origins,
-        'api_base_hint': request.host_url.rstrip('/'),
         'runtime': {
             'infer_image_size': inference_image_size,
-            'use_cuda_autocast': use_cuda_autocast,
-            'torch_threads': int(torch.get_num_threads()),
             'confidence_threshold': confidence_threshold,
-            'fallback_class': fallback_class,
-            'mapping_config_path': str(mapping_config_path),
-            'vlm_enabled': bool(GEMINI_API_KEY and genai is not None),
-            'vlm_model': GEMINI_MODEL_NAME,
-        }
-    })
-
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    """单张图像分类
-
-    Request:
-        - image: base64 编码的图像字符串
-        - format: 'base64' (默认)
-
-    Returns:
-        - class_name: 类别名称
-        - class_id: 类别 ID (0-3)
-        - confidence: 置信度
-    """
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
-
-    try:
-        # 获取请求数据
-        data = request.get_json()
-
-        if 'image' not in data:
-            return jsonify({'error': 'No image provided'}), 400
-
-        image_data = data['image']
-        if data.get('format') != 'base64':
-            return jsonify({'error': 'Unsupported format'}), 400
-
-        image = _decode_base64_image(image_data)
-        response = _infer_image(image)
-        response['vlm_fallback_used'] = False
-
-        if response.get('uncertain', False):
-            vlm_result = _call_vlm_fallback(image)
-            response['class_name'] = vlm_result['coarse_category']
-            response['coarse_category'] = vlm_result['coarse_category']
-            response['daily_label'] = vlm_result['vlm_class_name']
-            response['vlm_class_name'] = vlm_result['vlm_class_name']
-            response['vlm_raw_output'] = vlm_result['raw_output']
-            response['vlm_fallback_used'] = True
-            response['advice'] = '本地模型不确定，已启用云端VLM复核。'
-
-        return jsonify(response)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/batch_predict', methods=['POST'])
-def batch_predict():
-    """批量图像分类
-
-    Request:
-        - images: base64 编码的图像列表
-
-    Returns:
-        - predictions: 预测结果列表
-    """
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
-
-    try:
-        data = request.get_json()
-
-        if 'images' not in data:
-            return jsonify({'error': 'No images provided'}), 400
-
-        images = data['images']
-        predictions = []
-
-        for img_data in images:
-            try:
-                # 解码图像
-                if ',' in img_data:
-                    img_data = img_data.split(',')[1]
-
-                image_bytes = base64.b64decode(img_data)
-                image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-
-                # 预处理
-                input_tensor = transform(image).unsqueeze(0).to(device)
-
-                # 推理
-                with torch.inference_mode():
-                    if device is not None and str(device).startswith('cuda') and use_cuda_autocast:
-                        with torch.autocast(device_type='cuda', dtype=torch.float16):
-                            outputs = model(input_tensor)
-                    else:
-                        outputs = model(input_tensor)
-                    probabilities = torch.softmax(outputs, dim=1)[0]
-                    top_values, top_indices = torch.topk(probabilities, k=min(2, len(class_names)))
-
-                guarded = _apply_unknown_guardrails(class_names, probabilities, top_values, top_indices)
-                guarded['probabilities'] = {
-                    class_names[i]: float(probabilities[i].item())
-                    for i in range(len(class_names))
-                }
-                predictions.append(guarded)
-
-            except Exception as e:
-                predictions.append({'error': str(e)})
-
-        return jsonify({'predictions': predictions})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/detect_objects', methods=['POST'])
-def detect_objects():
-    """单张图片多目标候选裁剪并分别分类（低成本方案）"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
-
-    try:
-        data = request.get_json()
-        if not data or 'image' not in data:
-            return jsonify({'error': 'No image provided'}), 400
-        if data.get('format') != 'base64':
-            return jsonify({'error': 'Unsupported format'}), 400
-
-        max_objects = int(data.get('max_objects', 5))
-        max_objects = max(1, min(max_objects, 8))
-
-        image = _decode_base64_image(data['image'])
-        main_result = _infer_image(image)
-
-        candidates = _extract_candidate_crops(image, max_objects=max_objects)
-        objects = []
-        for idx, cand in enumerate(candidates):
-            pred = _infer_image(cand['crop'])
-            objects.append({
-                'id': idx,
-                'bbox_px': cand['bbox_px'],
-                'bbox_norm': cand['bbox_norm'],
-                'label': pred.get('daily_label') or pred.get('raw_top1_class') or pred.get('class_name'),
-                'confidence': pred.get('confidence', 0.0),
-                'prediction': pred,
-            })
-
-        return jsonify({
-            'main': main_result,
-            'objects': objects,
-            'object_count': len(objects),
-            'mode': 'lightweight_multi_object'
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/model_info', methods=['GET'])
-def model_info():
-    """获取模型信息"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
-
-    # 计算模型参数量
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    info = {
-        'model_type': model_meta.get('model_type', 'unknown'),
-        'backbone': model_meta.get('backbone', 'unknown'),
-        'num_classes': model_meta.get('num_classes', len(class_names)),
-        'class_names': model_meta.get('class_names', class_names),
-        'daily_labels': DAILY_LABEL_ORDER,
-        'missing_daily_labels': MISSING_DAILY_LABELS,
-        'coarse_labels': COARSE_LABELS,
-        'total_params': int(total_params),
-        'trainable_params': int(trainable_params),
-        'device': str(device)
+            'routing_strategy': 'confidence_only',
+            'provider': seed_vlm_client.status(),
+            'audited_parity': model_meta.get('runtime_parity', {'audited_parity': False}),
+        },
     }
 
-    return jsonify(info)
+
+def _model_information():
+    return {
+        **model_meta,
+        'total_params': sum(p.numel() for p in model.parameters()) if model else 0,
+        'device': str(device) if device else None,
+    }
 
 
-@app.route('/reload_model', methods=['POST'])
-def reload_model():
-    """重新加载模型
+def _runtime_metrics():
+    return {'telemetry': runtime_telemetry.snapshot(), 'provider': seed_vlm_client.status(),
+            'runtime_parity': model_meta.get('runtime_parity', {'audited_parity': False})}
 
-    Request:
-        - model_path: 模型路径
-        - model_type: 模型类型 (resnet/efficientnet)
-    """
-    try:
-        data = request.get_json()
-        model_path = data.get('model_path')
-        model_type = data.get('model_type', 'resnet')
 
-        if not model_path:
-            return jsonify({'error': 'model_path is required'}), 400
+def _detect_candidates(image, max_objects):
+    if model is None:
+        from backend.web import InputError
+        raise InputError('识别模型尚未就绪', 503)
+    candidates = _extract_candidate_crops(image, max_objects=max_objects)
+    objects = []
+    for idx, candidate in enumerate(candidates):
+        prediction = _infer_image(candidate['crop'])
+        objects.append({'id': idx, 'bbox_px': candidate['bbox_px'],
+                        'bbox_norm': candidate['bbox_norm'], 'prediction': prediction,
+                        'label': prediction['class_name'], 'confidence': prediction['confidence']})
+    return {'main': _infer_image(image), 'objects': objects, 'object_count': len(objects),
+            'mode': 'heuristic_candidates',
+            'limitation': '轮廓候选区域分类，未经目标检测标注集验证，不能视为检测模型。'}
 
-        load_model(model_path, model_type)
 
-        return jsonify({'status': 'success', 'message': 'Model reloaded'})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+app = create_app(
+    predictor=_cascade_infer_image, health_provider=_health_status,
+    info_provider=_model_information, metrics_provider=_runtime_metrics,
+    object_detector=_detect_candidates,
+)
 
 
 def main():
@@ -801,7 +659,7 @@ def main():
                         help='Model type (auto-detect if not specified)')
     parser.add_argument('--num-classes', type=int, default=14,
                         help='Number of classes')
-    parser.add_argument('--host', type=str, default='0.0.0.0',
+    parser.add_argument('--host', type=str, default='127.0.0.1',
                         help='Host address')
     parser.add_argument('--port', type=int, default=5000,
                         help='Port number')
@@ -823,6 +681,7 @@ def main():
     print("Available endpoints:")
     print("  GET  /")
     print("  GET  /health")
+    print("  GET  /metrics")
     print("  POST /predict")
     print("  POST /batch_predict")
     print("  GET  /model_info")

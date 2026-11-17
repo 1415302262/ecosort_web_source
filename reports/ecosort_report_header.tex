@@ -1,0 +1,31 @@
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\ifXeTeX
+  \usepackage{xeCJK}
+  \setCJKmainfont{Noto Serif CJK SC}
+  \setCJKsansfont{Noto Sans CJK SC}
+  \setCJKmonofont{Noto Sans Mono CJK SC}
+  \XeTeXlinebreaklocale "zh"
+  \XeTeXlinebreakskip = 0pt plus 1pt
+\fi
+
+\definecolor{EcoSortGray}{HTML}{4B5563}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small EcoSort 不确定性路由与 VLM Fallback 实验}
+\fancyhead[R]{\small 2026-08-11}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{14pt}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=0.25em,topsep=0.35em}
+\setlength{\emergencystretch}{3em}
+\raggedbottom
+\sloppy
+\hypersetup{hidelinks,colorlinks=false}
+\microtypesetup{activate=false}

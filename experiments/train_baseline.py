@@ -7,14 +7,27 @@ EcoSort 训练入口脚本
 import argparse
 import yaml
 from pathlib import Path
+import random
 
 import torch
+import numpy as np
 from torch.utils.data import DataLoader
 
 from src.data.dataset import create_dataloaders
 from src.models.resnet_classifier import create_resnet_model
 from src.models.efficientnet_classifier import create_efficientnet_model
+from src.models.vit_classifier import create_vit_model
 from src.train.trainer import Trainer
+
+
+def set_seed(seed: int):
+    """设置全局随机种子以保证可复现性"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def load_config(config_path: str) -> dict:
@@ -42,6 +55,13 @@ def create_model(config: dict):
             num_classes=config['model']['num_classes'],
             pretrained=config['model']['pretrained'],
             dropout=config['model'].get('dropout', 0.3)
+        )
+    elif model_type == 'vit':
+        return create_vit_model(
+            backbone=config['model']['backbone'],
+            num_classes=config['model']['num_classes'],
+            pretrained=config['model']['pretrained'],
+            dropout=config['model'].get('dropout', 0.1)
         )
     else:
         raise ValueError(f"Unknown model type: {model_type}")
@@ -77,6 +97,11 @@ def main():
     else:
         config['experiment_name'] = Path(args.config).stem
 
+    # 设置随机种子（使用日期或配置中的种子）
+    seed = config.get('seed', 20260227)
+    set_seed(seed)
+    print(f"Random seed set to: {seed}")
+
     print(f"\n{'='*60}")
     print(f"EcoSort Training: {config['experiment_name']}")
     print(f"{'='*60}\n")
@@ -99,6 +124,7 @@ def main():
             max(0.35, random_erasing_prob)
         )
         use_weighted_sampler = config.get('data', {}).get('use_weighted_sampler', False)
+        sampler_class_boosts = config.get('data', {}).get('sampler_class_boosts')
         train_loader, val_loader = create_dataloaders(
             data_root=config['data']['root_dir'],
             batch_size=config['data']['batch_size'],
@@ -108,6 +134,7 @@ def main():
             class_names=config_class_names,
             strong_aug=strong_aug,
             use_weighted_sampler=use_weighted_sampler,
+            sampler_class_boosts=sampler_class_boosts,
             random_erasing_prob=random_erasing_prob,
             weak_class_names=weak_class_names,
             weak_class_extra_aug=weak_class_extra_aug,
@@ -135,7 +162,7 @@ def main():
         print("  ├── hazardous/")
         print("  ├── kitchen/")
         print("  └── other/")
-        return
+        raise
 
     # 创建模型
     print("\nCreating model...")

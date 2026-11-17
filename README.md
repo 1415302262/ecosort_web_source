@@ -1,79 +1,80 @@
-# EcoSort Web: Edge-Cloud Waste Classification
+# EcoSort · 垃圾分类与纠错管理系统
 
-EcoSort is an end-to-end computer vision project for real-world waste classification. It includes the training pipeline, model evaluation utilities, a Flask inference backend, and deployment adapters for GitHub, Render, and Hugging Face Spaces.
+建议本科毕设题目：**基于置信度路由与视觉语言模型协同的垃圾分类系统设计与实现**。
 
-The project is packaged as a clean public repository: source code, configs, sample dataset structure, and deployment docs are included; raw datasets, experiment logs, local environments, and large temporary artifacts are excluded.
+EcoSort 将本地 EfficientNet-B3、低置信度路由和可选视觉语言模型复核接入一个可追溯的 Web 系统，提供单图/批量识别、历史记录、纠错审核、统计和 CSV 导出。正式运行代码以本仓库 `main` 为准；模型、原始数据与私有运行状态独立管理。
 
-## Core Features
+## 功能
 
-* **Edge-cloud cascade inference**: EfficientNet-B3 handles local low-latency classification, while an optional cloud VLM fallback can be enabled for uncertain samples.
-* **Robust preprocessing**: `Letterbox` resizing preserves aspect ratio and avoids distortion on real user photos.
-* **Practical taxonomy**: The runtime mapping supports a daily-use waste taxonomy with hazardous, recyclable, kitchen, and residual handling logic.
-* **Deployment-ready layout**: Flask backend, static frontend, Hugging Face Space entry point, and Render startup files are organized for direct upload.
+- 14 类细分类与四大类项目映射，统一 224 letterbox 和 `<0.85` 置信度路由。
+- 单图/批量识别、参数与图片校验、逐项异常反馈。
+- SQLite 记录、原图像素持久化、分页筛选、导出；按签名会话隔离访客记录。
+- 用户纠错 → 管理员采纳/驳回 → 审核事件 → 已采纳纠错导出；原始模型输出始终保留。
+- 云复核采用持久预算、缓存和失败保留本地预测；默认不开启付费调用。
+- 固定实验结果页与业务统计分开；CI 检查业务流程、权限、级联与数据隔离。
 
-## Repository Structure
-```text
-ecosort_web_source/
-├── backend/
-│   ├── app.py                  # Flask REST API with cascade logic
-│   └── static/index.html       # Frontend interface
-├── experiments/
-│   ├── train_baseline.py       # Training pipeline entry point
-│   └── evaluate.py             # Model evaluation and metrics
-├── src/                        # Core ML modules (models, datasets, transforms)
-├── configs/                    # YAML configs for training and label mapping
-├── data/
-│   └── sample/                 # Directory structure template for dataset
-├── checkpoints/                # Model weights directory (see README inside)
-├── ecosort_mapping.yaml        # Runtime confidence thresholds and fallback settings
-├── render.yaml                 # Render Blueprint deployment config
-├── environment.yml             # Conda environment definition
-└── requirements.txt            # Python dependencies
-```
+## 已有固定实验
 
-## Installation
+下表来自 2026 年 8 月固定实验，主测试集在确认精确重复排除后为 911 张。新增业务记录不改变这组实验结论。
 
-We recommend using Conda to manage the environment:
+| 方法 | Accuracy | Macro-F1 | 云调用率 | 全链路 P95 |
+|---|---:|---:|---:|---:|
+| 本地 EfficientNet-B3 | 91.218% | 91.208% | 0% | 65.6 ms |
+| 本地 + 置信度路由 + VLM | 96.158% | 96.337% | 15.587% | 4.14 s |
+
+142 次真实请求中，140 次成功映射、2 次失败保留本地；修正 49 例、引入 4 例，净修正 45 例。速度来自 NVIDIA L20，不能当作端侧实测。数据重复、标签边界、消融及其他限制见[原始实验报告](reports/ecosort_experiment_report.md)。
+
+[静态实验页面](docs/portfolio/index.html) · [报告 PDF](reports/ecosort_experiment_report.pdf)
+
+## 启动与访问
 
 ```bash
-conda env create -f environment.yml
-conda activate ecosort
 pip install -r requirements.txt
+# 下载可信真实权重；仓库中的 Git LFS pointer 不是权重
+export ECOSORT_MODEL_PATH=/absolute/path/to/best_model.pth
+export ECOSORT_STATE_DIR=/private/persistent/state
+export ECOSORT_ADMIN_TOKEN_FILE=/private/admin.token
+export ECOSORT_VLM_EXECUTE=0
+export ECOSORT_VLM_MAX_CALLS=0
+python -m backend.wsgi
 ```
 
-## Quick Start
+访问 `http://127.0.0.1:5000`。管理员口令至少 24 个字符；未配置时访客功能可用、管理员审核不可登录。生产使用 Linux 用户服务与 SSH 隧道，详见[部署与备份](docs/DEPLOYMENT.md)。本机 SSH 访问脚本：`scripts/open_server.ps1`。
 
-### 1. Training
-Train the model using the 14-class configuration with letterbox padding enabled:
+网页与 API 采用同源会话。脚本调用须先获取 `/api/session` 的 Cookie 与 CSRF，再调用写入接口，详见 [API 文档](docs/API.md)。
+
+## 测试
+
 ```bash
-python experiments/train_baseline.py \
-  --config configs/ecosort_v5_14class_effb3_letterbox224.yaml \
-  --data-root data/raw
+pip install -r requirements-ci.txt
+bash scripts/release_check.sh
+# 在 ML 环境验证数据加载器（不下载模型、不需要 GPU）
+pytest -q tests/test_dataset_contract.py
 ```
 
-### 2. Evaluation
-Evaluate the trained model against the validation/test set:
-```bash
-python experiments/evaluate.py \
-  --checkpoint checkpoints/best_model.pth \
-  --data-root data/raw \
-  --model-type efficientnet
+Windows 开发测试子集和现场演示步骤见[验收清单](docs/ACCEPTANCE.md)。测试不发送真实 VLM 请求；Linux CI 另运行进程并发、调用预算与崩溃恢复回归。
+
+## 论文与实验复现
+
+- [选题、需求、架构与论文提纲](docs/THESIS_PLAN.md)
+- [固定实验复现与新增数据构建](docs/REPRODUCIBILITY.md)
+- [固定实验原复现记录](reports/EXPERIMENT_REPRO.md)
+- [部署、更新、回滚与数据备份](docs/DEPLOYMENT.md)
+
+训练依赖见 `requirements-training.txt`，V6 配置为 `configs/train_ecosort_v6_14class.yaml`。新建数据集使用 `scripts/build_dataset_from_mapping.py`：先排重再分层切分，不覆盖旧目录。缺少独立 test 目录或遇到损坏图片时明确报错，不静默复用训练数据或填充白图。
+
+## 目录
+
+```text
+backend/             Web 工厂、持久化、ML 适配与前端
+src/                 数据加载、模型、训练、级联策略与 VLM 适配
+scripts/             数据审计、实验分析、发布、部署与备份
+experiments/         训练与评估入口
+tests/               业务、权限、数据与级联回归
+configs/             模型、训练与类别映射配置
+docs/portfolio/      已审计的公开聚合实验成果
+reports/             既有实验报告与复现说明
+runtime/             本地私有运行状态（Git 忽略）
 ```
 
-### 3. Serving (Backend API)
-Launch the Flask inference server. The server exposes REST endpoints for both local inference and VLM fallback execution.
-```bash
-python backend/app.py \
-  --model-path checkpoints/best_model.pth \
-  --host 0.0.0.0 \
-  --port 5000
-```
-
-## Data & Checkpoints
-
-Following version-control best practices for machine learning projects:
-
-* **Dataset**: the full raw dataset is not committed. Use `data/sample/` as the expected directory template and place custom images under `data/raw/<class_name>/`.
-* **Model weights**: `checkpoints/best_model.pth` is prepared through Git LFS for GitHub upload. If Git LFS is unavailable in your deployment target, use `ECOSORT_MODEL_URL` or `HF_MODEL_URL` to download the model at startup instead.
-
-See `checkpoints/README.md` and `GITHUB_UPLOAD.md` for the exact upload and deployment workflow.
+原始数据、原图、模型、API Key、管理员口令、SQLite 和私有调用账本不得作为普通 Git 文件发布。历史研究工作区保留其数据与未提交代码，正式服务使用独立发布目录。

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>EcoSort · 垃圾分类与纠错管理</title>
+    <link rel="stylesheet" href="/static/console.css" />
+    <script src="/static/console.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">EcoSort <span>识别 · 记录 · 改进</span></a>
+      <div class="top-actions">
+        <a href="/results/" target="_blank" rel="noopener">实验结果 ↗</a
+        ><button id="adminButton" class="quiet">管理员登录</button>
+      </div>
+    </header>
+    <main>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">INTELLIGENT WASTE CLASSIFICATION</p>
+          <h1>让每一次识别，都可追溯。</h1>
+          <p>
+            上传图片获得分类建议，保留识别记录，将有疑问的结果交给人工复核。
+          </p>
+        </div>
+        <div class="connection">
+          <span id="connectionDot" class="dot"></span
+          ><span id="connectionText">正在连接服务</span
+          ><small id="releaseText"></small>
+        </div>
+      </div>
+      <nav aria-label="功能导航">
+        <button data-tab="classify" class="active">图片识别</button
+        ><button data-tab="history">识别记录</button
+        ><button data-tab="stats">数据概览</button
+        ><button data-tab="review">
+          纠错审核 <span class="admin-mark">管理员</span>
+        </button>
+      </nav>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="classify" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>识别垃圾图片</h2>
+            <p>每张图以一个主体为宜。可一次选择多张图片，依次识别。</p>
+          </div>
+          <span class="tag">14 类细分类 · 4 类投放建议</span>
+        </div>
+        <label id="dropzone" class="dropzone" tabindex="0"
+          ><input
+            id="imageInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+          /><span class="upload-symbol">↑</span
+          ><strong>点击选择，或将图片拖到这里</strong
+          ><span
+            >JPG / PNG / WEBP · 每批最多 16 张 · 单图不超过 8 MB</span
+          ></label
+        >
+        <p class="caption">
+          低置信度结果会提示复核。云复核不可用时会保留本地预测；分类建议不代替当地投放规定。
+        </p>
+        <div id="progress" role="status" hidden></div>
+        <div id="predictionResults" class="cards"></div>
+        <details class="scope">
+          <summary>查看本项目支持的 14 类标签</summary>
+          <div id="labelScope" class="chips"></div>
+        </details>
+      </section>
+      <section id="history" class="panel" hidden>
+        <div class="section-title">
+          <div>
+            <h2>识别记录</h2>
+            <p>展示当前浏览器会话的记录；保留 Cookie 可继续访问。</p>
+          </div>
+          <a
+            id="exportRecords"
+            class="button secondary"
+            href="/api/records/export.csv"
+            >导出 CSV</a
+          >
+        </div>
+        <div class="filters">
+          <label
+            >投放类别
+            <select id="categoryFilter">
+              <option value="">全部类别</option>
+              <option value="recyclable">可回收物</option>
+              <option value="hazardous">有害垃圾</option>
+              <option value="kitchen">厨余垃圾</option>
+              <option value="other">其他垃圾</option>
+            </select></label
+          ><button id="refreshHistory" class="quiet">刷新记录</button>
+        </div>
+        <div id="historyResults" class="cards"></div>
+        <div class="pagination">
+          <button id="historyPrev" class="quiet">上一页</button
+          ><span id="historyPage"></span
+          ><button id="historyNext" class="quiet">下一页</button>
+        </div>
+      </section>
+      <section id="stats" class="panel" hidden>
+        <div class="section-title">
+          <div>
+            <h2>数据概览</h2>
+            <p>业务使用统计与固定测试集的实验成绩分别展示。</p>
+          </div>
+          <label id="globalScopeLabel" hidden
+            ><input id="globalScope" type="checkbox" /> 查看全站数据</label
+          >
+        </div>
+        <div id="statCards" class="stat-grid"></div>
+        <h3>投放类别分布</h3>
+        <div id="categoryChart" class="chart"></div>
+        <p class="caption">
+          本页统计来自实际识别记录，不代表模型准确率。人工审核通过的纠错仅供后续整理，不会自动改变模型。
+        </p>
+      </section>
+      <section id="review" class="panel" hidden>
+        <div class="section-title">
+          <div>
+            <h2>纠错审核</h2>
+            <p>核对原图、模型输出与用户建议，再决定是否采纳。</p>
+          </div>
+          <a
+            id="exportApproved"
+            class="button secondary"
+            href="/api/reviews/export.csv"
+            hidden
+            >导出已采纳纠错</a
+          >
+        </div>
+        <div id="reviewLocked" class="empty">
+          请先登录管理员账号，访问纠错队列。
+        </div>
+        <div id="reviewContent" hidden>
+          <div class="filters">
+            <label
+              >审核状态
+              <select id="reviewStatus">
+                <option value="pending">待审核</option>
+                <option value="approved">已采纳</option>
+                <option value="rejected">已驳回</option>
+              </select></label
+            ><button id="refreshReviews" class="quiet">刷新队列</button>
+          </div>
+          <div id="reviewResults" class="cards"></div>
+          <div class="pagination">
+            <button id="reviewPrev" class="quiet">上一页</button
+            ><span id="reviewPage"></span
+            ><button id="reviewNext" class="quiet">下一页</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      EcoSort · 毕业设计系统
+      <span>分类结果保留原始模型输出，人工意见单独记录。</span>
+    </footer>
+    <dialog id="loginDialog">
+      <form id="loginForm">
+        <div class="dialog-title">
+          <h2>管理员登录</h2>
+          <button
+            type="button"
+            data-close="loginDialog"
+            class="quiet"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </div>
+        <p>使用部署时生成的管理员口令。</p>
+        <label
+          >管理员口令<input
+            id="adminToken"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="256"
+        /></label>
+        <p id="loginError" class="error" role="alert"></p>
+        <button type="submit">登录审核台</button>
+      </form>
+    </dialog>
+    <dialog id="feedbackDialog">
+      <form id="feedbackForm">
+        <div class="dialog-title">
+          <h2>提交纠错建议</h2>
+          <button
+            type="button"
+            data-close="feedbackDialog"
+            class="quiet"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </div>
+        <p id="feedbackOriginal"></p>
+        <label
+          >你认为正确的类别<select id="expectedLabel" required></select></label
+        ><label
+          >补充说明<textarea
+            id="feedbackComment"
+            rows="3"
+            maxlength="500"
+            placeholder="例如：图中是废旧电池，非塑料包装。"
+          ></textarea>
+        </label>
+        <p class="caption">建议将进入人工审核队列，不会直接覆盖模型预测。</p>
+        <p id="feedbackError" class="error" role="alert"></p>
+        <button type="submit">提交审核</button>
+      </form>
+    </dialog>
+  </body>
+</html>
