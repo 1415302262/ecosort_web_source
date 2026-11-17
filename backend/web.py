@@ -98,6 +98,7 @@ def create_app(
         ),
         MAX_BATCH_SIZE=int(os.getenv("ECOSORT_MAX_BATCH_SIZE", "16")),
         ADMIN_TOKEN=os.getenv("ECOSORT_ADMIN_TOKEN", ""),
+        SESSION_COOKIE_NAME="ecosort_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("ECOSORT_COOKIE_SECURE", "0") == "1",
@@ -371,11 +372,13 @@ def create_app(
 
     @app.post("/api/records/<record_id>/feedback")
     def feedback(record_id):
-        record(record_id)
+        original = record(record_id)
         data = payload()
         label = text(data, "expected_label", 80, required=True)
         if label not in AUDITED_CLASS_NAMES:
             raise InputError("请选择有效的 14 类目标标签")
+        if label == original["predicted_label"]:
+            raise InputError("纠错类别与原预测一致，请选择你认为正确的其他类别")
         feedback_id = store.submit_feedback(
             record_id, label, text(data, "comment", 500)
         )

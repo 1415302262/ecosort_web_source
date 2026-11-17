@@ -214,6 +214,7 @@ def test_feedback_validation_duplicate_and_decision_conflict(app):
     client = app.test_client()
     record_id = predict(client)
     assert feedback(client, record_id, "unknown").status_code == 400
+    assert feedback(client, record_id, "plastic").status_code == 400
     submitted = feedback(client, record_id)
     assert feedback(client, record_id).status_code == 409
     assert (
@@ -232,6 +233,14 @@ def test_feedback_validation_duplicate_and_decision_conflict(app):
     )
     assert post(client, path, {"status": "rejected", "version": 1}).status_code == 200
     assert post(client, path, {"status": "approved", "version": 1}).status_code == 409
+
+
+def test_ecosort_session_does_not_overwrite_other_local_app_cookie(app):
+    client = app.test_client()
+    client.set_cookie("session", "another-local-application")
+    assert client.get("/api/session").status_code == 200
+    assert client.get_cookie("session").value == "another-local-application"
+    assert client.get_cookie("ecosort_session") is not None
 
 
 def test_two_reviewers_cannot_overwrite_each_other(app):
@@ -255,10 +264,10 @@ def test_two_reviewers_cannot_overwrite_each_other(app):
 def test_records_and_session_survive_application_restart(app, tmp_path):
     client = app.test_client()
     record_id = predict(client)
-    cookie = client.get_cookie("session")
+    cookie = client.get_cookie("ecosort_session")
     restarted = create_app(config={"TESTING": True, "STATE_DIR": tmp_path})
     new_client = restarted.test_client()
-    new_client.set_cookie("session", cookie.value)
+    new_client.set_cookie("ecosort_session", cookie.value)
     assert new_client.get(f"/api/records/{record_id}").status_code == 200
     assert new_client.get(f"/api/records/{record_id}/image").status_code == 200
 
