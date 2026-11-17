@@ -6,7 +6,6 @@ Windows may require elevated privileges; the portable default copies files.
 
 import argparse
 import csv
-import hashlib
 import json
 import random
 import re
@@ -16,6 +15,7 @@ from pathlib import Path
 
 import yaml
 from PIL import Image
+from src.inference.checksum import sha256_file
 
 
 def build_dataset(
@@ -49,8 +49,7 @@ def build_dataset(
                 continue
             with Image.open(path) as image:
                 image.verify()
-            with path.open("rb") as handle:
-                digest = hashlib.file_digest(handle, "sha256").hexdigest()
+            digest = sha256_file(path)
             if digest in seen:
                 if seen[digest][0] != label:
                     raise ValueError(f"Conflicting labels for exact duplicate: {path}")

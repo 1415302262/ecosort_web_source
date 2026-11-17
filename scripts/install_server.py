@@ -1,15 +1,14 @@
 """Install the current checkout as a loopback-only, no-paid-cloud user service."""
 
 import argparse
-import hashlib
 import os
 import secrets
-import shlex
 import socket
 import subprocess
 from pathlib import Path
 
 from src.inference.cascade import AUDITED_CHECKPOINT_SHA256
+from src.inference.checksum import sha256_file
 
 
 def main():
@@ -23,12 +22,8 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     checkpoint = Path(args.checkpoint).resolve()
-    with checkpoint.open("rb") as handle:
-        if (
-            hashlib.file_digest(handle, "sha256").hexdigest()
-            != AUDITED_CHECKPOINT_SHA256
-        ):
-            raise SystemExit("Checkpoint SHA256 does not match the audited model")
+    if sha256_file(checkpoint) != AUDITED_CHECKPOINT_SHA256:
+        raise SystemExit("Checkpoint SHA256 does not match the audited model")
     config = Path.home() / ".config/ecosort"
     config.mkdir(mode=0o700, parents=True, exist_ok=True)
     env_path = config / "app.env"
