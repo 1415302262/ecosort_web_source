@@ -64,10 +64,6 @@ runtime_raw_to_target: Dict[str, str] = {}
 cascade_policy = CascadePolicy(confidence_threshold)
 runtime_telemetry = RuntimeTelemetry()
 seed_vlm_client = SeedVLMClient.from_env()
-max_batch_size = max(1, int(os.getenv('ECOSORT_MAX_BATCH_SIZE', '16')))
-allow_model_reload = os.getenv('ECOSORT_ALLOW_MODEL_RELOAD', '0').strip().lower() in {
-    '1', 'true', 'yes', 'on'
-}
 
 
 def _call_vlm_fallback(image: Image.Image) -> Dict[str, Any]:

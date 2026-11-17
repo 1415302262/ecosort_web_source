@@ -200,6 +200,7 @@ async function classify(files) {
     $("imageInput").value = "";
     $("progress").textContent =
       `本批完成：${succeeded} 张成功，${files.length - succeeded} 张失败。成功结果已保存。`;
+    $("predictionResults").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 async function loadHistory() {

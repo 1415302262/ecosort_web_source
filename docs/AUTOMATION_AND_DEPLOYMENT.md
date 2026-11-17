@@ -54,8 +54,8 @@ ECOSORT_VLM_STATE_DIR=<持久化目录>
 - `/health`：模型是否加载、checkpoint hash、一致性门禁与 provider 配置状态；不返回 Key。
 - `/metrics`：本地覆盖率、路由率、真实 provider attempt rate、Mean/P50/P95 延迟和 token 累计；不返回图片、cache key 或请求 ID。
 - `ECOSORT_MAX_BATCH_SIZE` 默认 16，`ECOSORT_MAX_REQUEST_BYTES` 默认 12 MiB。
-- `/reload_model` 默认关闭；只有显式设置 `ECOSORT_ALLOW_MODEL_RELOAD=1` 才启用。
-- CORS 默认兼容演示环境，正式域名应通过 `ECOSORT_CORS_ORIGINS` 收紧。
+- `/reload_model` 始终关闭；模型更新通过受控部署和服务重启完成。
+- 当前 Web 采用同源 Cookie 和 CSRF，不启用跨站凭证请求；旧 CORS 环境变量不再控制正式运行。
 
 ## 5. 推荐的低人工维护方式
 
