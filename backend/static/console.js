@@ -263,6 +263,13 @@ async function loadStats() {
     card.append(element("small", title), element("strong", String(value)));
     cards.append(card);
   }
+  const pairs = $("correctionPairs");
+  pairs.replaceChildren();
+  for (const pair of data.correction_pairs) {
+    pairs.append(element("li", `${labelName(pair.predicted_label)} → ${labelName(pair.expected_label)}：${pair.n} 次`));
+  }
+  pairs.hidden = !data.correction_pairs.length;
+  $("correctionEmpty").hidden = !!data.correction_pairs.length;
   const chart = $("categoryChart");
   chart.replaceChildren();
   for (const [key, title] of Object.entries(coarse)) {

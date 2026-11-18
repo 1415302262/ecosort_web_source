@@ -1,0 +1,53 @@
+{
+  "upstream_git_blob": "4184b4e9d359026a49e5d34ac2cead944f53be88",
+  "totals": {
+    "not_matched_to_trashnet": 7301,
+    "trashnet_exact": 1717
+  },
+  "per_class": {
+    "brick_ceramic": {
+      "not_matched_to_trashnet": 400
+    },
+    "e_waste": {
+      "not_matched_to_trashnet": 226
+    },
+    "foam": {
+      "not_matched_to_trashnet": 200
+    },
+    "glass": {
+      "trashnet_exact": 435
+    },
+    "haz_battery": {
+      "not_matched_to_trashnet": 138
+    },
+    "haz_device": {
+      "not_matched_to_trashnet": 319
+    },
+    "haz_medicine": {
+      "not_matched_to_trashnet": 382
+    },
+    "hygiene_contaminated": {
+      "not_matched_to_trashnet": 952
+    },
+    "metal": {
+      "trashnet_exact": 410
+    },
+    "organic_food": {
+      "not_matched_to_trashnet": 1657
+    },
+    "paper_family": {
+      "trashnet_exact": 390,
+      "not_matched_to_trashnet": 34
+    },
+    "plastic": {
+      "trashnet_exact": 482,
+      "not_matched_to_trashnet": 1367
+    },
+    "small_hard_items": {
+      "not_matched_to_trashnet": 756
+    },
+    "textile": {
+      "not_matched_to_trashnet": 870
+    }
+  }
+}
