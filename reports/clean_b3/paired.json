@@ -1,0 +1,222 @@
+{
+  "precision": "FP32",
+  "n": 911,
+  "gpu": "NVIDIA L20",
+  "batch_size": 32,
+  "clean_b3": {
+    "accuracy": 0.8638858397365532,
+    "macro_f1": 0.854437876228432,
+    "route_count_at_085": 242,
+    "sha256": "1623f533d5c947fe4c25a8f62252bfa466f31323bda2d1e024d9f79def807c95",
+    "per_class": {
+      "brick_ceramic": {
+        "precision": 0.7058823529411765,
+        "recall": 0.9,
+        "f1-score": 0.7912087912087912,
+        "support": 40.0
+      },
+      "e_waste": {
+        "precision": 0.875,
+        "recall": 0.875,
+        "f1-score": 0.875,
+        "support": 24.0
+      },
+      "foam": {
+        "precision": 0.7894736842105263,
+        "recall": 0.75,
+        "f1-score": 0.7692307692307693,
+        "support": 20.0
+      },
+      "glass": {
+        "precision": 0.9302325581395349,
+        "recall": 0.9090909090909091,
+        "f1-score": 0.9195402298850575,
+        "support": 44.0
+      },
+      "haz_battery": {
+        "precision": 0.8333333333333334,
+        "recall": 0.7142857142857143,
+        "f1-score": 0.7692307692307693,
+        "support": 14.0
+      },
+      "haz_device": {
+        "precision": 0.8387096774193549,
+        "recall": 0.7878787878787878,
+        "f1-score": 0.8125,
+        "support": 33.0
+      },
+      "haz_medicine": {
+        "precision": 0.8648648648648649,
+        "recall": 0.8205128205128205,
+        "f1-score": 0.8421052631578947,
+        "support": 39.0
+      },
+      "hygiene_contaminated": {
+        "precision": 0.8791208791208791,
+        "recall": 0.8333333333333334,
+        "f1-score": 0.8556149732620321,
+        "support": 96.0
+      },
+      "metal": {
+        "precision": 0.8888888888888888,
+        "recall": 0.975609756097561,
+        "f1-score": 0.9302325581395349,
+        "support": 41.0
+      },
+      "organic_food": {
+        "precision": 0.9245283018867925,
+        "recall": 0.8802395209580839,
+        "f1-score": 0.901840490797546,
+        "support": 167.0
+      },
+      "paper_family": {
+        "precision": 0.9512195121951219,
+        "recall": 0.9069767441860465,
+        "f1-score": 0.9285714285714286,
+        "support": 43.0
+      },
+      "plastic": {
+        "precision": 0.8587570621468926,
+        "recall": 0.8172043010752689,
+        "f1-score": 0.837465564738292,
+        "support": 186.0
+      },
+      "small_hard_items": {
+        "precision": 0.8372093023255814,
+        "recall": 0.935064935064935,
+        "f1-score": 0.8834355828220859,
+        "support": 77.0
+      },
+      "textile": {
+        "precision": 0.8105263157894737,
+        "recall": 0.8850574712643678,
+        "f1-score": 0.8461538461538461,
+        "support": 87.0
+      },
+      "accuracy": 0.8638858397365532,
+      "macro avg": {
+        "precision": 0.8562676238044588,
+        "recall": 0.8564467352677019,
+        "f1-score": 0.854437876228432,
+        "support": 911.0
+      },
+      "weighted avg": {
+        "precision": 0.8670441818911543,
+        "recall": 0.8638858397365532,
+        "f1-score": 0.8640390762052069,
+        "support": 911.0
+      }
+    }
+  },
+  "deployed_b3": {
+    "accuracy": 0.9143798024149287,
+    "macro_f1": 0.913935018434813,
+    "route_count_at_085": 139,
+    "sha256": "9ba817cdf0712b597e1eb322d722e130707d60d6733cf46d8d87149456946234",
+    "per_class": {
+      "brick_ceramic": {
+        "precision": 0.9459459459459459,
+        "recall": 0.875,
+        "f1-score": 0.9090909090909091,
+        "support": 40.0
+      },
+      "e_waste": {
+        "precision": 0.875,
+        "recall": 0.875,
+        "f1-score": 0.875,
+        "support": 24.0
+      },
+      "foam": {
+        "precision": 0.85,
+        "recall": 0.85,
+        "f1-score": 0.85,
+        "support": 20.0
+      },
+      "glass": {
+        "precision": 0.88,
+        "recall": 1.0,
+        "f1-score": 0.9361702127659575,
+        "support": 44.0
+      },
+      "haz_battery": {
+        "precision": 0.9230769230769231,
+        "recall": 0.8571428571428571,
+        "f1-score": 0.8888888888888888,
+        "support": 14.0
+      },
+      "haz_device": {
+        "precision": 0.9666666666666667,
+        "recall": 0.8787878787878788,
+        "f1-score": 0.9206349206349206,
+        "support": 33.0
+      },
+      "haz_medicine": {
+        "precision": 0.9459459459459459,
+        "recall": 0.8974358974358975,
+        "f1-score": 0.9210526315789473,
+        "support": 39.0
+      },
+      "hygiene_contaminated": {
+        "precision": 0.9651162790697675,
+        "recall": 0.8645833333333334,
+        "f1-score": 0.9120879120879121,
+        "support": 96.0
+      },
+      "metal": {
+        "precision": 0.9523809523809523,
+        "recall": 0.975609756097561,
+        "f1-score": 0.963855421686747,
+        "support": 41.0
+      },
+      "organic_food": {
+        "precision": 0.9156626506024096,
+        "recall": 0.9101796407185628,
+        "f1-score": 0.9129129129129129,
+        "support": 167.0
+      },
+      "paper_family": {
+        "precision": 1.0,
+        "recall": 0.9534883720930233,
+        "f1-score": 0.9761904761904762,
+        "support": 43.0
+      },
+      "plastic": {
+        "precision": 0.8978494623655914,
+        "recall": 0.8978494623655914,
+        "f1-score": 0.8978494623655914,
+        "support": 186.0
+      },
+      "small_hard_items": {
+        "precision": 0.872093023255814,
+        "recall": 0.974025974025974,
+        "f1-score": 0.9202453987730062,
+        "support": 77.0
+      },
+      "textile": {
+        "precision": 0.8817204301075269,
+        "recall": 0.9425287356321839,
+        "f1-score": 0.9111111111111111,
+        "support": 87.0
+      },
+      "accuracy": 0.9143798024149287,
+      "macro avg": {
+        "precision": 0.9193898771012531,
+        "recall": 0.9108308505452044,
+        "f1-score": 0.913935018434813,
+        "support": 911.0
+      },
+      "weighted avg": {
+        "precision": 0.9162986732730827,
+        "recall": 0.9143798024149287,
+        "f1-score": 0.9143120706221135,
+        "support": 911.0
+      }
+    }
+  },
+  "corrected": 21,
+  "regressed": 67,
+  "paired_accuracy_delta_95pct_bootstrap": [
+    -0.07025246981339188,
+    -0.030735455543358946
+  ]
+}
