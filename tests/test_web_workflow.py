@@ -94,6 +94,10 @@ def test_prediction_feedback_review_and_export_preserve_original(app):
     assert record["review_note"] == "已核对原图"
     stats = reviewer.get("/api/stats?scope=all").json
     assert stats["total"] == 1 and stats["feedback"] == {"approved": 1}
+    assert stats["correction_pairs"] == [
+        {"predicted_label": "plastic", "expected_label": "haz_battery", "n": 1}
+    ]
+    assert app.test_client().get("/api/stats").json["correction_pairs"] == []
     exported = reviewer.get("/api/reviews/export.csv")
     assert exported.status_code == 200
     rows = list(csv.DictReader(io.StringIO(exported.data.decode("utf-8-sig"))))

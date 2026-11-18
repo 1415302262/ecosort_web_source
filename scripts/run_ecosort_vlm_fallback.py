@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import signal
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -455,7 +456,9 @@ def main() -> None:
     def _timeout_handler(signum, frame):
         raise TimeoutError(f"VLM call exceeded {args.timeout_seconds}s wall timeout")
 
-    previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    use_signal_timer = hasattr(signal, "setitimer")
+    if use_signal_timer:
+        previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
 
     try:
         for _, sample in pending.iterrows():
@@ -477,11 +480,22 @@ def main() -> None:
             summary["executed_this_run"] += 1
 
             request_started = time.perf_counter()
-            signal.setitimer(signal.ITIMER_REAL, args.timeout_seconds)
+            if use_signal_timer:
+                signal.setitimer(signal.ITIMER_REAL, args.timeout_seconds)
+            else:
+                # Windows CLI: a timed-out request is ambiguous. Stop this worker;
+                # its durable reservation prevents a duplicate paid request.
+                timer = threading.Timer(args.timeout_seconds, os._exit, args=(124,))
+                timer.daemon = True
+                timer.start()
             try:
                 response = backend_app._call_vlm_primary(request_image)
             finally:
-                signal.setitimer(signal.ITIMER_REAL, 0)
+                if use_signal_timer:
+                    signal.setitimer(signal.ITIMER_REAL, 0)
+                else:
+                    timer.cancel()
+                    timer.join()
             request_latency_ms = (time.perf_counter() - request_started) * 1000.0
             mapped_target, map_method = map_vlm_result(response, mapping)
             success = not bool(response.get("vlm_raw_output")) and bool(mapped_target)
@@ -533,8 +547,9 @@ def main() -> None:
                 print("Stopping after provider quota exhaustion; no further samples reserved.")
                 break
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous_handler)
+        if use_signal_timer:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous_handler)
 
     with lock_path.open("a+", encoding="utf-8") as lock_handle:
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)

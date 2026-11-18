@@ -28,7 +28,7 @@ def test_builder_deduplicates_before_split_and_is_repeatable(tmp_path):
     assert first["splits"] == {"train": 16, "val": 2, "test": 2}
     rows = list(csv.DictReader((a / "manifest.csv").open(encoding="utf-8")))
     assert len({row["sha256"] for row in rows}) == 20
-    assert (a / "manifest.csv").read_text() == (b / "manifest.csv").read_text()
+    assert (a / "manifest.csv").read_text(encoding="utf-8") == (b / "manifest.csv").read_text(encoding="utf-8")
 
 
 def test_builder_never_deletes_existing_output(tmp_path):

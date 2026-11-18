@@ -250,8 +250,18 @@ class Store:
                 + " GROUP BY f.status",
                 args,
             ).fetchall()
+            pairs = db.execute(
+                """SELECT r.predicted_label, f.expected_label, COUNT(*) n
+                FROM feedback f JOIN records r ON r.id=f.record_id
+                WHERE f.status='approved' AND r.predicted_label<>f.expected_label"""
+                + (" AND r.owner=?" if owner else "")
+                + " GROUP BY r.predicted_label,f.expected_label"
+                + " ORDER BY n DESC,r.predicted_label,f.expected_label LIMIT 5",
+                args,
+            ).fetchall()
         return {
             **dict(row),
+            "correction_pairs": [dict(pair) for pair in pairs],
             "categories": {r[0]: r[1] for r in categories},
             "feedback": {r[0]: r[1] for r in feedback},
             "note": "业务使用统计，不是模型准确率；纠错经人工审核后仍不自动进入训练集。",

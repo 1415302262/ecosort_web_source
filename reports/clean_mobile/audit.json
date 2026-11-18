@@ -1,0 +1,14 @@
+{
+  "train": {
+    "keep": 7206,
+    "label_conflict": 4
+  },
+  "val": {
+    "keep": 895,
+    "duplicate": 1
+  },
+  "test": {
+    "keep": 911,
+    "duplicate": 1
+  }
+}
